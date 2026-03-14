@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motion Challenge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/board.css">
+  <link rel="stylesheet" href="css/animations.css">
+</head>
+
+<body>
+
+  <div class="app">
+
+    <header>
+      <h1>Motion Challenge</h1>
+      <div class="stats">
+        <div class="stat-box">
+          <span class="stat-label">MOVES</span>
+          <span class="stat-value" id="moves">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">TIME</span>
+          <span class="stat-value" id="timer">240</span>
+        </div>
+      </div>
+      <p class="hint">
+        Click the <span>red ball</span> or a <span>colored block</span> to select it, then use arrows to move it one step. Guide the ball to the <span>black hole</span>.
+      </p>
+    </header>
+
+    <div id="gameBoard"></div>
+
+    <div class="controls">
+      <button id="resetBtn">↺ Reset</button>
+      <button id="nextBtn">Next →</button>
+    </div>
+
+  </div>
+
+  <script src="js/utils/constants.js" defer></script>
+  <script src="js/utils/gridHelpers.js" defer></script>
+  <script src="js/utils/timer.js" defer></script>
+
+  <script src="js/engine/collision.js" defer></script>
+  <script src="js/engine/movement.js" defer></script>
+  <script src="js/engine/winCondition.js" defer></script>
+  <script src="js/engine/gameEngine.js" defer></script>
+
+  <script src="js/ui/renderer.js" defer></script>
+  <script src="js/ui/boardRenderer.js" defer></script>
+  <script src="js/ui/directionIndicator.js" defer></script>
+  <script src="js/ui/controls.js" defer></script>
+
+  <script src="js/levels/levelGenerator.js" defer></script>
+  <script src="js/levels/levelManager.js" defer></script>
+
+  <script src="js/main.js" defer></script>
+
+</body>
+</html>

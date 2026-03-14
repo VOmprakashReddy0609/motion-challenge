@@ -1,0 +1,141 @@
+/* css/board.css */
+
+#gameBoard {
+  display: grid;
+  gap: 6px;
+  justify-content: center;
+  align-content: center;
+  padding: 14px;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+/* ── Base tile ───────────────────────────────────────── */
+
+.cell {
+  width: 70px;
+  height: 70px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a48;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: 8px;
+  cursor: default;
+  transition: background 0.12s ease;
+}
+
+/* ── Ball cell ───────────────────────────────────────── */
+
+.cell--ball {
+  cursor: pointer;
+}
+
+.cell--ball:hover {
+  background: #1e1e34;
+}
+
+/* ── Block cell — clickable ──────────────────────────── */
+
+.cell--block {
+  cursor: pointer;
+  /* No background — block-fill div covers it */
+  background: transparent;
+  border-color: transparent;
+}
+
+/* ── Selected piece highlight ────────────────────────── */
+
+.cell--selected {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(255,255,255,0.25);
+}
+
+.cell--selected.cell--block {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(255,255,255,0.25);
+}
+
+/* ── Ball ────────────────────────────────────────────── */
+
+.ball {
+  width: 44px;
+  height: 44px;
+  background: radial-gradient(circle at 35% 35%, #ff8888, #cc2222);
+  border-radius: 50%;
+  z-index: 2;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(0,0,0,0.25);
+  pointer-events: none;
+}
+
+/* ── Hole / Goal ─────────────────────────────────────── */
+
+.hole {
+  width: 46px;
+  height: 46px;
+  background: radial-gradient(circle at center, #050510 55%, #12123a);
+  border-radius: 50%;
+  border: 2px solid #5a52e0;
+  z-index: 1;
+  box-shadow: 0 0 14px rgba(90,82,224,0.55), inset 0 0 10px rgba(0,0,0,0.9);
+  pointer-events: none;
+}
+
+/* ── Multi-cell block fill ───────────────────────────── */
+/*
+ * .block-fill covers the entire cell (including the gap area via negative
+ * margins). When adjacent cells of the same block are also .block-fill,
+ * they visually merge into one solid shape.
+ *
+ * The gap between grid cells is 6px. Each cell is 70px. To bridge the gap
+ * we extend the fill by 3px on each shared edge (half the gap).
+ * border-radius is set inline by boardRenderer based on which edges are inner.
+ */
+
+.block-fill {
+  position: absolute;
+  inset: 0;                    /* fill the cell completely */
+  border-radius: 8px;          /* overridden inline per-cell */
+  border: 2px solid rgba(255,255,255,0.10);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+/* Extend into the gap on shared (inner) edges */
+.block-fill[style*="border-top: none"]    { top:    -6px; }
+.block-fill[style*="border-bottom: none"] { bottom: -6px; }
+.block-fill[style*="border-left: none"]   { left:   -6px; }
+.block-fill[style*="border-right: none"]  { right:  -6px; }
+
+/* Color variants */
+
+.block--purple {
+  background: linear-gradient(145deg, #7c6fe0, #5242c0);
+}
+
+.block--yellow {
+  background: linear-gradient(145deg, #f5c842, #c88c10);
+}
+
+.block--blue {
+  background: linear-gradient(145deg, #4a9de0, #2060b0);
+}
+
+.block--green {
+  background: linear-gradient(145deg, #4ec47a, #208848);
+}
+
+/* ── Rigid locked tile ───────────────────────────────── */
+
+.locked {
+  background: #0d0d1c;
+  border-color: #181830;
+  pointer-events: none;
+}
+
+.locked::after {
+  content: "✕";
+  color: #252540;
+  font-size: 22px;
+  font-weight: 700;
+}

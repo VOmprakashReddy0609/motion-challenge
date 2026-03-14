@@ -1,0 +1,92 @@
+/* css/animations.css */
+
+/* ── Ball roll animation (triggered by class swap during auto-roll) ── */
+
+@keyframes ballBounce {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.12); }
+  70%  { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+
+.ball {
+  animation: ballPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes ballPulse {
+  0%, 100% { box-shadow: 0 3px 10px rgba(0,0,0,0.5), 0 0 0 0 rgba(220,50,50,0.35); }
+  50%       { box-shadow: 0 3px 10px rgba(0,0,0,0.5), 0 0 0 7px rgba(220,50,50,0); }
+}
+
+/* Hole breathing glow */
+.hole {
+  animation: holePulse 2s ease-in-out infinite;
+}
+
+@keyframes holePulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(90, 82, 224, 0.55), inset 0 0 10px rgba(0,0,0,0.9); }
+  50%       { box-shadow: 0 0 24px rgba(90, 82, 224, 0.85), inset 0 0 10px rgba(0,0,0,0.9); }
+}
+
+/* Block hover shimmer */
+.cell--block:hover .block {
+  filter: brightness(1.15);
+  transition: filter 0.15s ease;
+}
+
+/* ── Arrow indicators ────────────────────────────────── */
+
+.arrow {
+  position: absolute;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+  z-index: 10;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.12s ease, transform 0.12s ease;
+  backdrop-filter: blur(2px);
+}
+
+.arrow.up {
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.arrow.down {
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.arrow.left {
+  left: -15px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.arrow.right {
+  right: -15px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Preserve translate in hover — the critical bug fix from before */
+.arrow.up:hover    { background: rgba(255,255,255,0.3); transform: translateX(-50%)  scale(1.2); }
+.arrow.down:hover  { background: rgba(255,255,255,0.3); transform: translateX(-50%)  scale(1.2); }
+.arrow.left:hover  { background: rgba(255,255,255,0.3); transform: translateY(-50%)  scale(1.2); }
+.arrow.right:hover { background: rgba(255,255,255,0.3); transform: translateY(-50%)  scale(1.2); }
+
+/* Cell transition for smooth renders */
+.cell {
+  transition: background-color 0.1s ease, box-shadow 0.15s ease;
+}
