@@ -3,30 +3,21 @@
 class Timer {
 
   constructor(display) {
-    this.display  = display;
+    this.display  = display;   // the DOM element showing time
     this.time     = TIMER_DURATION;
     this.interval = null;
-    this.onExpire = null;   // optional callback when time hits 0
-
-    if (this.display) this.display.innerText = this.time;
+    this.onExpire = null;      // callback fired when time hits 0
+    this._render();
   }
 
   start() {
-    // Guard: don't start a second interval if already running
-    if (this.interval) return;
-
+    if (this.interval) return;   // guard: never double-start
     this.interval = setInterval(() => {
       this.time--;
-
-      if (this.display) this.display.innerText = this.time;
-
+      this._render();
       if (this.time <= 0) {
         this.stop();
-        if (typeof this.onExpire === "function") {
-          this.onExpire();
-        } else {
-          alert("Time Over! Starting a new level.");
-        }
+        if (typeof this.onExpire === "function") this.onExpire();
       }
     }, 1000);
   }
@@ -38,12 +29,27 @@ class Timer {
     }
   }
 
-  // BUG FIX: reset now resets time and display but does NOT auto-start.
-  // main.js calls timer.reset() then timer.start() explicitly via startLevel().
+  // Resets time to full duration. Does NOT auto-start — caller must call start().
   reset() {
     this.stop();
     this.time = TIMER_DURATION;
-    if (this.display) this.display.innerText = this.time;
+    this._render();
+  }
+
+  // ── Internal rendering ────────────────────────────────────────────────────
+
+  _render() {
+    if (!this.display) return;
+    const t    = Math.max(0, this.time);
+    const mins = String(Math.floor(t / 60)).padStart(2, "0");
+    const secs = String(t % 60).padStart(2, "0");
+    this.display.textContent = mins + ":" + secs;
+
+    // Visual warnings
+    this.display.classList.remove("timer--warning", "timer--danger");
+    const pct = t / TIMER_DURATION;
+    if (pct <= 0.15)      this.display.classList.add("timer--danger");
+    else if (pct <= 0.33) this.display.classList.add("timer--warning");
   }
 
 }

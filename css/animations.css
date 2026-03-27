@@ -1,92 +1,294 @@
-/* css/animations.css */
+/* css/animations.css — Motion Challenge Animations */
 
-/* ── Ball roll animation (triggered by class swap during auto-roll) ── */
-
-@keyframes ballBounce {
-  0%   { transform: scale(1); }
-  40%  { transform: scale(1.12); }
-  70%  { transform: scale(0.94); }
-  100% { transform: scale(1); }
-}
-
+/* ── Ball idle pulse ── */
 .ball {
-  animation: ballPulse 2.4s ease-in-out infinite;
+  animation: ballPulse 2.2s ease-in-out infinite;
 }
 
 @keyframes ballPulse {
-  0%, 100% { box-shadow: 0 3px 10px rgba(0,0,0,0.5), 0 0 0 0 rgba(220,50,50,0.35); }
-  50%       { box-shadow: 0 3px 10px rgba(0,0,0,0.5), 0 0 0 7px rgba(220,50,50,0); }
+  0%, 100% {
+    box-shadow:
+      0 4px 12px rgba(0,0,0,0.6),
+      0 0 0 2px rgba(255,100,100,0.3),
+      inset 0 -3px 6px rgba(0,0,0,0.3);
+  }
+  50% {
+    box-shadow:
+      0 4px 12px rgba(0,0,0,0.6),
+      0 0 0 8px rgba(220,38,38,0),
+      inset 0 -3px 6px rgba(0,0,0,0.3);
+  }
 }
 
-/* Hole breathing glow */
+/* ── Hole breathing glow ── */
 .hole {
   animation: holePulse 2s ease-in-out infinite;
 }
 
 @keyframes holePulse {
-  0%, 100% { box-shadow: 0 0 14px rgba(90, 82, 224, 0.55), inset 0 0 10px rgba(0,0,0,0.9); }
-  50%       { box-shadow: 0 0 24px rgba(90, 82, 224, 0.85), inset 0 0 10px rgba(0,0,0,0.9); }
+  0%, 100% {
+    box-shadow:
+      0 0 14px rgba(90,82,224,0.55),
+      inset 0 0 12px rgba(0,0,0,0.95);
+  }
+  50% {
+    box-shadow:
+      0 0 28px rgba(90,82,224,0.9),
+      inset 0 0 12px rgba(0,0,0,0.95);
+  }
 }
 
-/* Block hover shimmer */
-.cell--block:hover .block {
-  filter: brightness(1.15);
-  transition: filter 0.15s ease;
+/* ── Cell selection ring pop ── */
+.cell--selected {
+  animation: selectPop 0.18s ease forwards;
 }
 
-/* ── Arrow indicators ────────────────────────────────── */
-
-.arrow {
-  position: absolute;
-  font-size: 14px;
-  cursor: pointer;
-  user-select: none;
-  z-index: 10;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 4px;
-  width: 22px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  transition: background 0.12s ease, transform 0.12s ease;
-  backdrop-filter: blur(2px);
+@keyframes selectPop {
+  0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+  60%  { box-shadow: 0 0 0 4px rgba(196,92,0,0.55), 0 0 0 7px rgba(196,92,0,0.1); }
+  100% { box-shadow: 0 0 0 2px #c45c00, 0 0 0 5px rgba(196,92,0,0.2); }
 }
 
-.arrow.up {
-  top: -15px;
-  left: 50%;
-  transform: translateX(-50%);
+/* ── Block hover ── */
+.cell--block {
+  transition: filter 0.08s ease;
 }
 
-.arrow.down {
-  bottom: -15px;
-  left: 50%;
-  transform: translateX(-50%);
+/* ─────────────────────────────────────────────────────────────
+   WIN FLASH — uses outline + box-shadow on #gameBoard itself.
+   NO filter/transform on the grid container (breaks stacking).
+   ───────────────────────────────────────────────────────────── */
+
+
+@keyframes boardWin {
+  0%   {
+    outline: 0px solid rgba(34,197,94,0);
+    box-shadow: 0 0 0 0 rgba(34,197,94,0);
+  }
+  35%  {
+    outline: 4px solid #22c55e;
+    box-shadow:
+      0 0 0 8px rgba(34,197,94,0.25),
+      0 0 40px rgba(34,197,94,0.4);
+  }
+  100% {
+    outline: 0px solid rgba(34,197,94,0);
+    box-shadow: 0 0 0 0 rgba(34,197,94,0);
+  }
 }
 
-.arrow.left {
-  left: -15px;
-  top: 50%;
-  transform: translateY(-50%);
+/* ─────────────────────────────────────────────────────────────
+   LOSE FLASH — shake via margin trick (avoids transform on grid).
+   Red outline pulses while the board shudders left/right.
+   ───────────────────────────────────────────────────────────── */
+#gameBoard.board--win {
+  animation: boardWin 0.6s ease forwards;   /* = FLASH_MS 600 */
 }
 
-.arrow.right {
-  right: -15px;
-  top: 50%;
-  transform: translateY(-50%);
+#gameBoard.board--lose {
+  animation: boardLose 0.55s ease forwards;  /* = FLASH_MS 550 */
 }
 
-/* Preserve translate in hover — the critical bug fix from before */
-.arrow.up:hover    { background: rgba(255,255,255,0.3); transform: translateX(-50%)  scale(1.2); }
-.arrow.down:hover  { background: rgba(255,255,255,0.3); transform: translateX(-50%)  scale(1.2); }
-.arrow.left:hover  { background: rgba(255,255,255,0.3); transform: translateY(-50%)  scale(1.2); }
-.arrow.right:hover { background: rgba(255,255,255,0.3); transform: translateY(-50%)  scale(1.2); }
+@keyframes boardLose {
+  0%   {
+    outline: 0px solid rgba(239,68,68,0);
+    margin-left: 0;
+  }
+  15%  {
+    outline: 4px solid #ef4444;
+    margin-left: -7px;
+    box-shadow: 0 0 30px rgba(239,68,68,0.4);
+  }
+  30%  { margin-left:  7px; }
+  45%  { margin-left: -5px; }
+  60%  { margin-left:  5px; }
+  75%  { margin-left: -3px; }
+  90%  { margin-left:  3px; }
+  100% {
+    outline: 0px solid rgba(239,68,68,0);
+    margin-left: 0;
+    box-shadow: none;
+  }
+}
 
-/* Cell transition for smooth renders */
+/* ── Modal entrance ── */
+@keyframes modal-in {
+  from { transform: translateY(30px) scale(0.97); opacity: 0; }
+  to   { transform: translateY(0) scale(1);       opacity: 1; }
+}
+
+/* ── Smooth cell transitions ── */
 .cell {
   transition: background-color 0.1s ease, box-shadow 0.15s ease;
+}
+
+/* ── Lock mark subtle throb ── */
+.lock-mark {
+  animation: lockThrob 3.5s ease-in-out infinite;
+}
+
+@keyframes lockThrob {
+  0%, 100% { opacity: 0.45; }
+  50%       { opacity: 0.7; }
+}
+
+/* ── Moves/Timer danger blink ── */
+.moves--danger {
+  animation: blink 0.5s ease infinite;
+  color: #dc2626 !important;
+  font-weight: 700;
+}
+
+.moves--warning {
+  color: #d97706 !important;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+/* ── Timer bar colour states ── */
+#timer-bar-fill {
+  transition: width 1s linear, background-color 0.4s;
+}
+
+#timer-bar-fill.timer--warning { background-color: #d97706 !important; }
+#timer-bar-fill.timer--danger  { background-color: #dc2626 !important; }
+
+/* ── Status value pulse on change ── */
+.status-val.pulse {
+  animation: statusPulse 0.4s ease;
+}
+
+@keyframes statusPulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+/* ── Control button press ── */
+.control-btn:active {
+  transform: scale(0.95);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   GAME RESULT BANNER
+   — uses animation not transition so it works after
+     display:none → display:flex switch
+   ───────────────────────────────────────────────────────────── */
+.game-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 6px;
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  animation: bannerIn 0.28s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+
+@keyframes bannerIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+.game-banner--hidden {
+  display: none !important;
+}
+
+.game-banner--win {
+  background: #dcfce7;
+  color: #166534;
+  border: 1.5px solid #86efac;
+}
+
+.game-banner--lose {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1.5px solid #fca5a5;
+}
+
+[data-theme="dark"] .game-banner--win {
+  background: #052e16;
+  color: #86efac;
+  border-color: #166534;
+}
+
+[data-theme="dark"] .game-banner--lose {
+  background: #3b0a0a;
+  color: #fca5a5;
+  border-color: #991b1b;
+}
+
+.banner-icon { font-size: 18px; flex-shrink: 0; }
+.banner-text { font-weight: 700; }
+.banner-sub  { font-size: 12px; opacity: 0.7; margin-left: auto; }
+
+/* ── Dark mode board flash overrides ── */
+[data-theme="dark"] #gameBoard.board--win {
+  animation: boardWinDark 0.55s ease forwards;
+}
+
+@keyframes boardWinDark {
+  0%   {
+    outline: 0px solid rgba(34,197,94,0);
+    box-shadow: 0 0 0 0 rgba(34,197,94,0);
+  }
+  35%  {
+    outline: 4px solid #22c55e;
+    box-shadow:
+      0 0 0 8px rgba(34,197,94,0.2),
+      0 0 60px rgba(34,197,94,0.5);
+  }
+  100% {
+    outline: 0px solid rgba(34,197,94,0);
+    box-shadow: 0 0 0 0 rgba(34,197,94,0);
+  }
+}
+
+[data-theme="dark"] #gameBoard.board--lose {
+  animation: boardLoseDark 0.5s ease forwards;
+}
+
+@keyframes boardLoseDark {
+  0%   {
+    outline: 0px solid rgba(239,68,68,0);
+    margin-left: 0;
+  }
+  15%  {
+    outline: 4px solid #ef4444;
+    margin-left: -7px;
+    box-shadow: 0 0 50px rgba(239,68,68,0.5);
+  }
+  30%  { margin-left:  7px; }
+  45%  { margin-left: -5px; }
+  60%  { margin-left:  5px; }
+  75%  { margin-left: -3px; }
+  90%  { margin-left:  3px; }
+  100% {
+    outline: 0px solid rgba(239,68,68,0);
+    margin-left: 0;
+    box-shadow: none;
+  }
+}
+
+/* Hole under block styling */
+.hole--under-block {
+  opacity: 0.4; /* Dimmed but visible */
+  filter: grayscale(0.5);
+}
+
+/* Optional: subtle indicator that hole is preserved underneath */
+.cell--hole-bg {
+  position: relative;
+}
+
+.cell--hole-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px dashed rgba(147, 51, 234, 0.3); /* Subtle purple dashed border */
+  pointer-events: none;
 }

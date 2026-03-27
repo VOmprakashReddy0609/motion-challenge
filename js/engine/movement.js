@@ -1,93 +1,98 @@
 // js/engine/movement.js
+// Step-by-step movement (1 cell per move) - FIXED VERSION
+//
+// CRITICAL FIX: Block movement now preserves holes using backgroundGrid concept.
+// The grid parameter should have a backgroundGrid property for hole preservation.
 
-// ── Ball movement ─────────────────────────────────────────────────────────────
+// ── Ball movement (ONE STEP) ─────────────────────────────────────────────────
 
 function getBallMoves(grid, r, c) {
   const moves = [];
-  if (isBallPassable(grid, r - 1, c)) moves.push("UP");
-  if (isBallPassable(grid, r + 1, c)) moves.push("DOWN");
-  if (isBallPassable(grid, r, c - 1)) moves.push("LEFT");
-  if (isBallPassable(grid, r, c + 1)) moves.push("RIGHT");
+  for (const dir of DIR_KEYS) {
+    const { dr, dc } = DIRECTIONS[dir];
+    const nr = r + dr;
+    const nc = c + dc;
+    if (isBallPassable(grid, nr, nc)) moves.push(dir);
+  }
   return moves;
 }
 
-// Move ball one step. Returns new [r, c] (unchanged if blocked).
-function moveBall(grid, dir, r, c) {
-  const delta = DIRECTIONS[dir];
-  if (!delta) return [r, c];
-
-  const nr = r + delta.dr;
-  const nc = c + delta.dc;
-
+// Move ball ONE STEP in direction. Returns new [r, c].
+function moveBallOneStep(grid, r, c, dir) {
+  const { dr, dc } = DIRECTIONS[dir];
+  const nr = r + dr;
+  const nc = c + dc;
+  
   if (!isBallPassable(grid, nr, nc)) return [r, c];
-
-  grid[r][c]   = CELL_EMPTY;
+  
+  // CRITICAL FIX: Check if we're leaving a hole (restore it)
+  const wasHole = grid.backgroundGrid && grid.backgroundGrid[r][c] === CELL_HOLE;
+  grid[r][c] = wasHole ? CELL_HOLE : CELL_EMPTY;
+  
   grid[nr][nc] = CELL_BALL;
-
+  
   return [nr, nc];
 }
 
-// ── Multi-cell block sliding ──────────────────────────────────────────────────
+// ── Block movement (ONE STEP) ─────────────────────────────────────────────────
+// FIXED: Now preserves holes when blocks move over them
 
-// Slide block one step in dir. Mutates grid and block.cells in place.
-// Returns true if the block moved, false if blocked.
-function slideBlock(grid, block, dir) {
+function moveBlockOneStep(grid, block, dir) {
   if (!canBlockMove(grid, block, dir)) return false;
-
+  
   const { dr, dc } = DIRECTIONS[dir];
-
-  // Clear all current cells first (important: must clear before writing new ones
-  // so we don't accidentally overwrite a cell we're about to move into)
+  
+  // CRITICAL FIX: Store what each cell was before clearing (for hole restoration)
+  const wasHole = [];
   for (const [r, c] of block.cells) {
-    grid[r][c] = CELL_EMPTY;
+    // Check background grid if available, otherwise assume empty
+    const isHole = grid.backgroundGrid && grid.backgroundGrid[r][c] === CELL_HOLE;
+    wasHole.push(isHole);
   }
-
-  // Write all new cells
-  const newCells = block.cells.map(([r, c]) => [r + dr, c + dc]);
-  for (const [r, c] of newCells) {
+  
+  // Clear current cells - restore holes where appropriate
+  for (let i = 0; i < block.cells.length; i++) {
+    const [r, c] = block.cells[i];
+    grid[r][c] = wasHole[i] ? CELL_HOLE : CELL_EMPTY;
+  }
+  
+  // Advance cells by one step
+  block.cells = block.cells.map(([r, c]) => [r + dr, c + dc]);
+  block.anchor = [block.anchor[0] + dr, block.anchor[1] + dc];
+  
+  // Write new cells
+  for (const [r, c] of block.cells) {
     grid[r][c] = block.id;
   }
-
-  // Update the block's anchor and cell list
-  block.anchor = [block.anchor[0] + dr, block.anchor[1] + dc];
-  block.cells  = newCells;
-
+  
   return true;
+}
+
+// Get all valid movement directions for a block (ONE STEP)
+function getBlockMoves(grid, block) {
+  return DIR_KEYS.filter(dir => canBlockMove(grid, block, dir));
 }
 
 // ── Block registry helpers ────────────────────────────────────────────────────
 
-// Build a block object from a shape key, anchor, color, and id.
-// Cells are absolute [r,c] positions derived from anchor + shape offsets.
 function makeBlock(id, shapeKey, anchorR, anchorC, color) {
   const offsets = BLOCK_SHAPES[shapeKey];
-  const cells   = offsets.map(([dr, dc]) => [anchorR + dr, anchorC + dc]);
+  const cells = offsets.map(([dr, dc]) => [anchorR + dr, anchorC + dc]);
   return { id, shapeKey, anchor: [anchorR, anchorC], cells, color };
 }
 
-// Given a block registry array, find the block whose cells include (r,c).
-// Returns the block object or null.
 function findBlockAt(blocks, r, c) {
   return blocks.find(b => b.cells.some(([br, bc]) => br === r && bc === c)) || null;
 }
 
-// Stamp all blocks onto a fresh grid (marking cells with block id).
-// Used after cloning a level to rebuild the grid from block data.
+// CRITICAL FIX: stampBlocks now preserves background holes
 function stampBlocks(grid, blocks) {
   for (const block of blocks) {
     for (const [r, c] of block.cells) {
-      grid[r][c] = block.id;
+      // Only stamp if not a hole (holes persist under blocks visually)
+      if (!grid.backgroundGrid || grid.backgroundGrid[r][c] !== CELL_HOLE) {
+        grid[r][c] = block.id;
+      }
     }
   }
-}
-
-// Deep-clone the blocks registry (used by LevelManager reset).
-function cloneBlocks(blocks) {
-  return blocks.map(b => ({
-    id:       b.id,
-    shapeKey: b.shapeKey,
-    anchor:   [...b.anchor],
-    cells:    b.cells.map(cell => [...cell]),
-    color:    b.color
-  }));
 }

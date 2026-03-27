@@ -3,17 +3,18 @@
 function attachControls(resetBtn, nextBtn, resetFn, nextFn) {
 
   if (resetBtn && typeof resetFn === "function") {
-    resetBtn.addEventListener("click", function (e) {
-      e.preventDefault();
-      resetFn();
-    });
+    resetBtn.addEventListener("click", (e) => { e.preventDefault(); resetFn(); });
   }
 
   if (nextBtn && typeof nextFn === "function") {
-    nextBtn.addEventListener("click", function (e) {
-      e.preventDefault();
-      nextFn();
-    });
+    nextBtn.addEventListener("click", (e) => { e.preventDefault(); nextFn(); });
   }
 
+}
+
+// ── Score / level UI helpers ──────────────────────────────────────────────────
+
+function updateHUD(levelEl, scoreEl, level, score) {
+  if (levelEl) levelEl.textContent = level;
+  if (scoreEl) scoreEl.textContent = score;
 }

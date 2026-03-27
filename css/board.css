@@ -1,141 +1,205 @@
-/* css/board.css */
+/* css/board.css — Professional Exam-Style Board Design */
 
+/* ── Board grid container ── */
 #gameBoard {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   justify-content: center;
   align-content: center;
-  padding: 14px;
-  margin: 0 auto;
-  overflow: visible;
+  background: #f0f3f8;
+  border: 2px solid #8aa0c0;
+  padding: 4px;
+  border-radius: 3px;
+  outline: 0px solid transparent;   /* pre-declare so animation doesn't jump */
+  outline-offset: 2px;
+  position: relative;                /* needed for margin-based shake */
+}
+#board-area {
+  padding: 28px 20px 20px;
+  display: flex;
+  flex-direction: column;       /* banner stacks below board */
+  justify-content: center;
+  align-items: center;
+  background: var(--white);
+  min-height: 380px;
+  overflow: visible;            /* don't clip the win/lose glow */
+  position: relative;
 }
 
-/* ── Base tile ───────────────────────────────────────── */
-
+/* ── Base cell ── */
 .cell {
-  width: 70px;
-  height: 70px;
-  background: #1a1a2e;
-  border: 1px solid #2a2a48;
+  width: 68px;
+  height: 68px;
+  background: #ffffff;
+  border: 1.5px solid #b8c8de;
+  border-radius: 4px;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  border-radius: 8px;
   cursor: default;
-  transition: background 0.12s ease;
+  transition: background 0.12s ease, box-shadow 0.15s ease;
 }
 
-/* ── Ball cell ───────────────────────────────────────── */
-
+/* ── Ball cell ── */
 .cell--ball {
   cursor: pointer;
+  background: #fafcff;
 }
 
 .cell--ball:hover {
-  background: #1e1e34;
+  background: #e8f0fb;
+  border-color: #1a56a0;
 }
 
-/* ── Block cell — clickable ──────────────────────────── */
+/* ── Hole cell ── */
+.cell--hole {
+  background: #f2f5fb;
+}
 
+/* ── Block cell ── */
 .cell--block {
   cursor: pointer;
-  /* No background — block-fill div covers it */
   background: transparent;
   border-color: transparent;
 }
 
-/* ── Selected piece highlight ────────────────────────── */
-
-.cell--selected {
-  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(255,255,255,0.25);
-}
-
-.cell--selected.cell--block {
-  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(255,255,255,0.25);
-}
-
-/* ── Ball ────────────────────────────────────────────── */
-
-.ball {
-  width: 44px;
-  height: 44px;
-  background: radial-gradient(circle at 35% 35%, #ff8888, #cc2222);
-  border-radius: 50%;
-  z-index: 2;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(0,0,0,0.25);
+/* ── Lock cell ── */
+.cell--locked {
+  background: #f2f5fb;
+  border-color: #b8c8de;
+  cursor: not-allowed;
   pointer-events: none;
 }
 
-/* ── Hole / Goal ─────────────────────────────────────── */
+.lock-mark {
+  color: #8a9ab8;
+  font-size: 24px;
+  font-weight: 900;
+  user-select: none;
+  pointer-events: none;
+  opacity: 0.6;
+}
 
-.hole {
+/* ── Selected piece highlight ── */
+.cell--selected {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px rgba(255,255,255,0.2);
+  z-index: 5;
+  background: #fff8e0 !important;
+  border: 2.5px solid #c45c00 !important;
+}
+
+.cell--block.cell--selected {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px rgba(255,255,255,0.2);
+}
+
+/* ── Ball ── */
+.ball {
   width: 46px;
   height: 46px;
-  background: radial-gradient(circle at center, #050510 55%, #12123a);
   border-radius: 50%;
-  border: 2px solid #5a52e0;
-  z-index: 1;
-  box-shadow: 0 0 14px rgba(90,82,224,0.55), inset 0 0 10px rgba(0,0,0,0.9);
+  background: radial-gradient(circle at 35% 32%, #ff9999, #dc2626 55%, #8b0000);
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.6),
+    0 0 0 2px rgba(255,100,100,0.3),
+    inset 0 -3px 6px rgba(0,0,0,0.3);
+  z-index: 3;
   pointer-events: none;
 }
 
-/* ── Multi-cell block fill ───────────────────────────── */
-/*
- * .block-fill covers the entire cell (including the gap area via negative
- * margins). When adjacent cells of the same block are also .block-fill,
- * they visually merge into one solid shape.
- *
- * The gap between grid cells is 6px. Each cell is 70px. To bridge the gap
- * we extend the fill by 3px on each shared edge (half the gap).
- * border-radius is set inline by boardRenderer based on which edges are inner.
- */
+/* ── Hole / Goal ── */
+.hole {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, #020210 50%, #0e0e30);
+  border: 2px solid #5a52e0;
+  box-shadow:
+    0 0 16px rgba(90,82,224,0.6),
+    inset 0 0 14px rgba(0,0,0,0.95);
+  z-index: 2;
+  pointer-events: none;
+}
 
+/* ── Block fills ── */
 .block-fill {
   position: absolute;
-  inset: 0;                    /* fill the cell completely */
-  border-radius: 8px;          /* overridden inline per-cell */
-  border: 2px solid rgba(255,255,255,0.10);
+  inset: 0;
+  border: 2px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
   box-sizing: border-box;
   pointer-events: none;
+  z-index: 2;
+  transition: filter 0.15s ease;
 }
 
-/* Extend into the gap on shared (inner) edges */
-.block-fill[style*="border-top: none"]    { top:    -6px; }
-.block-fill[style*="border-bottom: none"] { bottom: -6px; }
-.block-fill[style*="border-left: none"]   { left:   -6px; }
-.block-fill[style*="border-right: none"]  { right:  -6px; }
-
-/* Color variants */
-
-.block--purple {
-  background: linear-gradient(145deg, #7c6fe0, #5242c0);
+.cell--block:hover .block-fill {
+  filter: brightness(1.18);
 }
 
-.block--yellow {
-  background: linear-gradient(145deg, #f5c842, #c88c10);
-}
+/* Color themes for blocks */
+.block--purple { background: linear-gradient(145deg, #8b7cf8, #5b3fc4); }
+.block--yellow { background: linear-gradient(145deg, #fcd34d, #b45309); }
+.block--blue   { background: linear-gradient(145deg, #60a5fa, #1d4ed8); }
+.block--green  { background: linear-gradient(145deg, #4ade80, #15803d); }
+.block--orange { background: linear-gradient(145deg, #fb923c, #c2410c); }
+.block--teal   { background: linear-gradient(145deg, #2dd4bf, #0f766e); }
 
-.block--blue {
-  background: linear-gradient(145deg, #4a9de0, #2060b0);
-}
-
-.block--green {
-  background: linear-gradient(145deg, #4ec47a, #208848);
-}
-
-/* ── Rigid locked tile ───────────────────────────────── */
-
-.locked {
-  background: #0d0d1c;
-  border-color: #181830;
-  pointer-events: none;
-}
-
-.locked::after {
-  content: "✕";
-  color: #252540;
-  font-size: 22px;
+/* ── Direction arrows ── */
+.arrow {
+  position: absolute;
+  z-index: 20;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-family: 'Courier New', Courier, monospace;
   font-weight: 700;
+  color: #fff;
+  background: rgba(26, 86, 160, 0.85);
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 5px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s, transform 0.12s;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+/* Positions — sit flush to the outer edge of the cell */
+.arrow--up    { top: -18px;  left: 50%; transform: translateX(-50%); }
+.arrow--down  { bottom: -18px; left: 50%; transform: translateX(-50%); }
+.arrow--left  { left: -18px; top: 50%;  transform: translateY(-50%); }
+.arrow--right { right: -18px; top: 50%; transform: translateY(-50%); }
+
+/* Hover — must preserve the baseline centering transform */
+.arrow--up:hover    { background: #123d7a; transform: translateX(-50%) scale(1.15); }
+.arrow--down:hover  { background: #123d7a; transform: translateX(-50%) scale(1.15); }
+.arrow--left:hover  { background: #123d7a; transform: translateY(-50%) scale(1.15); }
+.arrow--right:hover { background: #123d7a; transform: translateY(-50%) scale(1.15); }
+
+/* Highlight for row/column when piece selected */
+.cell--highlight-rc {
+  background: #eef3fc !important;
+}
+
+/* Hole under block styling */
+.hole--under-block {
+  opacity: 0.4; /* Dimmed but visible */
+  filter: grayscale(0.5);
+}
+
+/* Optional: subtle indicator that hole is preserved underneath */
+.cell--hole-bg {
+  position: relative;
+}
+
+.cell--hole-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px dashed rgba(147, 51, 234, 0.3); /* Subtle purple dashed border */
+  pointer-events: none;
 }
