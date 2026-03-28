@@ -69,8 +69,8 @@ const DIFFICULTY_TIERS = [
 ];
 
 function getTier(levelNumber) {
-  if (levelNumber <= 3)  return DIFFICULTY_TIERS[0];
-  if (levelNumber <= 7)  return DIFFICULTY_TIERS[1];
-  if (levelNumber <= 12) return DIFFICULTY_TIERS[2];
+  if (levelNumber <= 7)  return DIFFICULTY_TIERS[0];
+  if (levelNumber <= 15)  return DIFFICULTY_TIERS[1];
+  if (levelNumber <= 20) return DIFFICULTY_TIERS[2];
   return DIFFICULTY_TIERS[3];
 }
