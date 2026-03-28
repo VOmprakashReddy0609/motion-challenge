@@ -12,7 +12,7 @@ const CELL_LOCK  = "X";        // rigid / non-movable obstacle (cross mark)
 
 // ── Block colors ──────────────────────────────────────────────────────────────
 
-const BLOCK_COLORS = ["purple", "yellow", "blue", "green", "orange", "teal"];
+const BLOCK_COLORS = ["purple", "yellow", "blue", "green", "orange", "teal","red", "brown"];
 
 // ── Block shape definitions ───────────────────────────────────────────────────
 // Each shape is [dr, dc] offsets from the block's anchor (top-left cell).
@@ -35,7 +35,7 @@ const AVAILABLE_SHAPES = ["1x1", "1x2", "2x1", "1x2", "2x1", "1x1", "2x2"];
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
 
-const TIMER_DURATION = 240; // 4 minutes in seconds
+const TIMER_DURATION = 600; // 4 minutes in seconds
 
 // ── Scoring ───────────────────────────────────────────────────────────────────
 

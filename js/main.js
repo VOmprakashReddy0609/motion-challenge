@@ -56,7 +56,7 @@ function toggleTheme() {
   let levelManager     = null;
   let engine           = null;
   let isGameActive     = false;
-  let _timerSeconds    = 240;
+  let _timerSeconds    = TIMER_DURATION;
   let _timerInterval   = null;
   let _gameStarted     = false;
   let _isTransitioning = false;
@@ -87,7 +87,7 @@ function toggleTheme() {
 
   function _resetTimerForNewGame() {
     _stopTimer();
-    _timerSeconds = 240;
+    _timerSeconds = TIMER_DURATION;
     _renderTimer();
   }
 
@@ -98,7 +98,7 @@ function toggleTheme() {
     if (timerSecEl) timerSecEl.textContent = String(s).padStart(2, '0');
 
     if (timerBarFill) {
-      const pct = (_timerSeconds / 240) * 100;
+      const pct = (_timerSeconds / TIMER_DURATION) * 100;
       timerBarFill.style.width = Math.max(0, Math.min(100, pct)) + '%';
       timerBarFill.classList.remove('timer--warning', 'timer--danger');
       if      (pct <= 15) timerBarFill.classList.add('timer--danger');

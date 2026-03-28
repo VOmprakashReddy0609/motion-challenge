@@ -1,602 +1,771 @@
 // js/levels/levelGenerator.js
 //
-// 🎯 STRATEGIC BLOCK PLACEMENT — GUARANTEED SOLVABLE
-// March 2026 • Every block has purpose, every level has solution
+// 🎯 HARDCODED LEVELS 1-15 — All levels manually designed for consistent gameplay
+// No procedural generation — every level is hand-crafted for optimal puzzle design
 //
-// KEY FIXES:
-// • Blocks validated for movability BEFORE placement
-// • Escape routes guaranteed for every placed block
-// • Path connectivity verified after each placement
-// • Complex shapes placed only in "movable zones"
-// • Post-placement solvability check with repair
-
-const MAX_ATTEMPTS   = 600;
-const MAX_BFS_STATES = 30000;
-const GENERATION_TIMEOUT_MS = 3500;
-const BFS_DISCOVERY_LIMIT = 150;
 
 const DEBUG = typeof window !== 'undefined' && window.DEBUG_LEVEL_GEN;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PRNG & Hashing
-// ─────────────────────────────────────────────────────────────────────────────
-function createSplitMix32(seed) {
-  return function() {
-    seed |= 0; seed = (seed + 0x9e3779b9) | 0;
-    let t = seed ^ (seed >>> 16);
-    t = Math.imul(t, 0x21f0aaad);
-    t = t ^ (t >>> 15); t = Math.imul(t, 0x735a2d97);
-    return ((t = t ^ (t >>> 15)) >>> 0) / 4294967296;
-  };
-}
-
-function hashLevelNumber(levelNumber) {
-  let h = (levelNumber * 0x9e3779b9) ^ (levelNumber >>> 16);
-  h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13;
-  h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;
-  return h >>> 0;
-}
-
-function serializeState(ballR, ballC, blocks) {
-  let key = ballR + ':' + ballC + ':';
-  const anchors = blocks.map(b => b.id + '=' + b.anchor[0] + ',' + b.anchor[1]).sort();
-  return key + anchors.join(';');
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Entry Point
 // ─────────────────────────────────────────────────────────────────────────────
 function generateLevel(levelNumber) {
-  const startTime = performance.now();
-  levelNumber = Math.max(1, levelNumber || 1);
-  const tier = getTier(levelNumber);
-  const { gridRows: rows, gridCols: cols } = tier;
-  const seed = hashLevelNumber(levelNumber);
-  const rng = createSplitMix32(seed);
+  levelNumber = Math.max(1, Math.min(15, levelNumber || 1));
 
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    if (performance.now() - startTime > GENERATION_TIMEOUT_MS) {
-      if (DEBUG) console.warn('Level ' + levelNumber + ' timeout → fallback');
-      return _fallbackLevel(tier, levelNumber, rng, true);
-    }
-    const level = _tryGenerate(rows, cols, tier, levelNumber, rng);
-    if (level) {
-      level.backgroundGrid = cloneGrid(level.grid);
-      if (DEBUG) console.log(`✅ L${levelNumber}: ${level.rows}x${level.cols} blocks:${level.blocks.length} sol:${level._solutionLen} limit:${level.moveLimit}`);
-      return level;
-    }
+  let level;
+  
+  switch(levelNumber) {
+    case 1:
+      level = _buildHardcodedLevel1();
+      break;
+    case 2:
+      level = _buildHardcodedLevel2();
+      break;
+    case 3:
+      level = _buildHardcodedLevel3();
+      break;
+    case 4:
+      level = _buildHardcodedLevel4();  // This is actually your original level 5
+      break;
+    case 5:
+      level = _buildHardcodedLevel5();  // This is actually your original level 6
+      break;
+    case 6:
+      level = _buildHardcodedLevel6();  // This is actually your original level 7
+      break;
+    case 7:
+      level = _buildHardcodedLevel7();  // This is actually your original level 8
+      break;
+    case 8:
+      level = _buildHardcodedLevel8();  // This is actually your original level 9
+      break;
+    case 9:
+      level = _buildHardcodedLevel9();  // This is actually your original level 10
+      break;
+    case 10:
+      level = _buildHardcodedLevel10(); // This is actually your original level 11
+      break;
+    case 11:
+      level = _buildHardcodedLevel11(); // This is actually your original level 12
+      break;
+    case 12:
+      level = _buildHardcodedLevel12(); // This is actually your original level 13
+      break;
+    case 13:
+      level = _buildHardcodedLevel13(); // This is actually your original level 14
+      break;
+    case 14:
+      level = _buildHardcodedLevel14(); // This is actually your original level 15
+      break;
+    case 15:
+      level = _buildHardcodedLevel15(); // New level 15
+      break;
+    case 16:
+      level = _buildHardcodedLevel16(); // New level 16
+      break;
+    // case 17:
+    //   level = _buildHardcodedLevel17(); // New level 17
+    //   break;
+    default:
+      level = _buildHardcodedLevel1();
   }
-  if (DEBUG) console.warn('Level ' + levelNumber + ' max attempts → fallback');
-  return _fallbackLevel(tier, levelNumber, rng, true);
+  
+  level.backgroundGrid = cloneGrid(level.grid);
+  if (DEBUG) console.log(`✅ Loaded hardcoded level ${levelNumber}`);
+  return level;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TIER SYSTEM
+// UNIVERSAL EXPORTS
 // ─────────────────────────────────────────────────────────────────────────────
-function getTier(levelNumber) {
-  const L = Math.max(1, levelNumber);
-  const gridRows = Math.min(9, 5 + Math.min(4, Math.floor((L - 1) / 4)));
-  const gridCols = Math.min(10, 6 + Math.min(4, Math.floor((L - 1) / 4)));
-  const minBlocks = Math.min(16, 3 + L + Math.floor(L * 0.4));
-  const maxBlocks = Math.min(18, minBlocks + 2);
-  const minLocks = Math.min(12, 1 + Math.floor(L * 0.9));
-  const maxLocks = Math.min(14, minLocks + 1);
-  const targetSolutionLen = Math.min(60, 8 + L * 2 + Math.floor(L * 0.8));
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { generateLevel };
+}
+if (typeof window !== 'undefined') {
+  window.generateLevel = generateLevel;
+  window.LevelGenerator = { generateLevel };
+  window.cloneGrid = cloneGrid;
+  window.cloneBlocks = cloneBlocks;
+  window.stampBlocks = stampBlocks;
+  window.canBlockMove = canBlockMove;
+  window.DIRECTIONS = DIRECTIONS;
+  window.DIR_KEYS = DIR_KEYS;
+}
 
-  const requiredShapes = [];
-  if (L >= 1) requiredShapes.push("2x2");
-  if (L >= 4) requiredShapes.push("L1", "T1");
-  if (L >= 7) requiredShapes.push("Z1", "S1");
-  if (L >= 10) requiredShapes.push("1x3", "3x1");
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVEL 1 — 6×5
+// Ball: [5,0]  Hole: [0,4]
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel1() {
+  const rows = 6, cols = 5;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
 
-  const features = {
-    chokepointGates: L >= 2, forcedDetours: L >= 3,
-    multiStepClearance: L >= 6, trapZones: L >= 8,
-    symmetricObstruction: L >= 10
+  const grid = [
+    [E,  E,  E,  E,  H],  // Row 0 - Hole at [0,4]
+    [E,  E,  E,  E,  E],  // Row 1
+    [E,  E,  E,  E,  L],  // Row 2 - Obstacle at [2,4]
+    [E,  E,  E,  E,  E],  // Row 3
+    [E,  E,  E,  E,  E],  // Row 4
+    [B,  E,  E,  E,  L],  // Row 5 - Ball at [5,0], Obstacle at [5,4]
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "1x3", anchor: [0, 1], 
+      cells: [[0,1], [0,2], [0,3]], color: "yellow" },
+    { id: "b1", shapeKey: "2x1", anchor: [1, 3], 
+      cells: [[1,3], [2,3]], color: "purple" },
+    { id: "b2", shapeKey: "1x3", anchor: [3, 0], 
+      cells: [[3,0], [3,1], [3,2]], color: "yellow" },
+    { id: "b3", shapeKey: "1x2", anchor: [3, 3], 
+      cells: [[3,3], [3,4]], color: "green" },
+    { id: "b4", shapeKey: "1x2", anchor: [5, 2], 
+      cells: [[5,2], [5,3]], color: "blue" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 5, 0, 0, 4, 1, 18);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVEL 2 — 6×5
+// Ball: [2,0]  Hole: [2,4]
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel2() {
+  const rows = 6, cols = 5;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
+
+  const grid = [
+    [E,  E,  E,  E,  L],
+    [E,  E,  L,  E,  E],
+    [B,  E,  E,  E,  H],
+    [E,  E,  L,  E,  E],
+    [E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E],
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "3x1", anchor: [1, 1], 
+      cells: [[1,1], [2,1], [3,1]], color: "blue" },
+    { id: "b1", shapeKey: "2x1", anchor: [1, 3], 
+      cells: [[1,3], [2,3]], color: "purple" },
+    { id: "b2", shapeKey: "1x2", anchor: [4, 2], 
+      cells: [[4,2], [4,3]], color: "orange" },
+    { id: "b3", shapeKey: "1x1", anchor: [4, 0], 
+      cells: [[4,0]], color: "teal" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 2, 0, 2, 4, 2, 16);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVEL 3 — 6×5
+// Ball: [5,0]  Hole: [5,4]
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel3() {
+  const rows = 6, cols = 5;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
+
+  const grid = [
+    [L,  E,  E,  E,  E],
+    [L,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E],
+    [B,  E,  E,  E,  H],
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "1x3", anchor: [0, 1], 
+      cells: [[0,1], [0,2], [0,3]], color: "yellow" },
+    { id: "b1", shapeKey: "2x1", anchor: [1, 3], 
+      cells: [[1,3], [2,3]], color: "purple" },
+    { id: "b2", shapeKey: "1x3", anchor: [3, 1], 
+      cells: [[3,1], [3,2], [3,3]], color: "yellow" },
+    { id: "b3", shapeKey: "2x1", anchor: [4, 1], 
+      cells: [[4,1], [5,1]], color: "green" },
+    { id: "b4", shapeKey: "2x1", anchor: [4, 3], 
+      cells: [[4,3], [5,3]], color: "blue" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 5, 0, 5, 4, 3, 20);
+}
+
+
+function _buildHardcodedLevel4() {
+  const rows = 5, cols = 3;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
+ 
+  const grid = [
+    [E,  E, B],  // Ball at [0,3]
+    [E,  E, E],
+    [E,  E, E],
+    [E,  E, E],
+    [E,  H, E],  // Hole at [4,1]
+  ];
+ 
+  const blocks = [
+    // Horizontal 1×2 bar — sits in row 1, cols 0-1
+    { id: "b0", shapeKey: "1x2", anchor: [1, 0],
+      cells: [[1,0], [1,1]], color: "yellow" },
+    // Vertical 2×1 bar — sits in col 0, rows 2-3
+    { id: "b1", shapeKey: "2x1", anchor: [2, 0],
+      cells: [[2,0], [3,0]], color: "purple" },
+    // 2×2 square — sits in rows 2-3, cols 2-3
+    // Now fully interior with col 3 as the right edge of a 4-wide grid
+    { id: "b2", shapeKey: "2x2", anchor: [2, 2],
+      cells: [[2,1], [2,2], [3,1], [3,2]], color: "blue" },
+  ];
+ 
+  return _finalizeHardcoded(grid, rows, cols, blocks, 0, 2, 4, 1, 4, 18);
+}
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVEL 5 — 6×4
+// Ball: [4,3]  Hole: [0,1]
+
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel5() {
+  const rows = 6, cols = 4;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
+ 
+  const grid = [
+    [E,  H,  E,  E],  // Hole at [0,1]
+    [E,  E,  E,  E],
+    [E,  E,  E,  E],
+    [E,  E,  L,  E],  // Lock at [3,2]
+    [E,  E,  E,  B],  // Ball at [4,3] — moved from [4,2] to avoid lock shadow
+    [E,  E,  E,  E],
+  ];
+ 
+  const blocks = [
+    // Horizontal 1×3 bar — row 1, cols 0-2
+    { id: "b0", shapeKey: "1x3", anchor: [1, 0],
+      cells: [[1,0], [1,1], [1,2]], color: "yellow" },
+    // Single cell — row 4, col 0
+    { id: "b1", shapeKey: "1x1", anchor: [4, 0],
+      cells: [[4,0]], color: "yellow" },
+    // Vertical 2×1 bar — col 1, rows 2-3
+    { id: "b2", shapeKey: "2x1", anchor: [2, 1],
+      cells: [[2,1], [3,1]], color: "teal" },
+    // Vertical 2×1 bar — col 1, rows 4-5
+    { id: "b3", shapeKey: "2x1", anchor: [4, 1],
+      cells: [[4,1], [5,1]], color: "purple" },
+    // Single cell — row 3, col 3
+    { id: "b4", shapeKey: "1x1", anchor: [3, 3],
+      cells: [[3,3]], color: "blue" },
+    // Horizontal 1×2 bar — row 5, cols 2-3
+    { id: "b5", shapeKey: "1x2", anchor: [5, 2],
+      cells: [[5,2], [5,3]], color: "orange" },
+    // Horizontal 1×2 bar — row 2, cols 2-3
+    { id: "b6", shapeKey: "1x2", anchor: [2, 2],
+      cells: [[2,2], [2,3]], color: "green" },
+  ];
+ 
+  return _finalizeHardcoded(grid, rows, cols, blocks, 4, 3, 0, 1, 5, 24);
+}
+ 
+
+// LEVEL 6 — 7×5 (Original level 9 from your spec)
+// Ball: [6,0]  Hole: [0,2]
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel6() {
+  const rows = 7, cols = 5;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
+
+  const grid = [
+    [E,  E,  H,  E,  E],
+    [E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E],
+    [B,  E,  E,  E,  E],
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "1x3", anchor: [1, 0], 
+      cells: [[1,0], [1,1], [1,2]], color: "yellow" },
+    { id: "b1", shapeKey: "2x2", anchor: [1, 3], 
+      cells: [[1,3], [1,4], [2,3], [2,4]], color: "teal" },
+    { id: "b2", shapeKey: "4x1", anchor: [2, 0], 
+      cells: [[2,0], [3,0], [4,0], [5,0]], color: "blue" },
+    { id: "b3", shapeKey: "3x1", anchor: [3, 1], 
+      cells: [[3,1], [4,1], [5,1]], color: "purple" },
+    { id: "b4", shapeKey: "2x1", anchor: [2, 2], 
+      cells: [[2,2], [3,2]], color: "blue" },
+    { id: "b5", shapeKey: "1x1", anchor: [4, 3], 
+      cells: [[4,3]], color: "orange" },
+    { id: "b6", shapeKey: "1x2", anchor: [5, 2], 
+      cells: [[5,2], [5,3]], color: "green" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 6, 0, 0, 2, 8, 30);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVEL 7 — 6×4 (Original level 10 from your spec)
+// Ball: [5,0]  Hole: [0,3]
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel7() {
+  const rows = 6, cols = 4;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
+
+  const grid = [
+    [E,  E,  E,  H],
+    [E,  L,  E,  E],
+    [E,  E,  L,  E],
+    [E,  E,  E,  E],
+    [E,  E,  E,  E],
+    [B,  E,  E,  E],
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "3x1", anchor: [0, 0], 
+      cells: [[0,0], [1,0], [2,0]], color: "yellow" },
+    { id: "b1", shapeKey: "1x2", anchor: [1, 2], 
+      cells: [[1,2], [1,3]], color: "green" },
+    { id: "b2", shapeKey: "3x1", anchor: [3, 1], 
+      cells: [[3,1], [4,1], [5,1]], color: "blue" },
+    { id: "b3", shapeKey: "2x1", anchor: [4, 3], 
+      cells: [[4,3], [5,3]], color: "purple" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 5, 0, 0, 3, 9, 22);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVEL 8 — 4×4 (Original level 11 from your spec)
+// Ball: [0,0]  Hole: [3,3]
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel8() {
+  const rows = 4, cols = 4;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
+
+  const grid = [
+    [B,  E,  E,  E],
+    [E,  E,  E,  E],
+    [E,  E,  E,  E],
+    [E,  E,  E,  H],
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "1x3", anchor: [0, 1], 
+      cells: [[0,1], [0,2], [0,3]], color: "yellow" },
+    { id: "b1", shapeKey: "2x1", anchor: [1, 1], 
+      cells: [[1,1], [2,1]], color: "purple" },
+    { id: "b2", shapeKey: "2x1", anchor: [2, 0], 
+      cells: [[2,0], [3,0]], color: "green" },
+    { id: "b3", shapeKey: "1x2", anchor: [2, 2], 
+      cells: [[2,2], [2,3]], color: "yellow" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 0, 0, 3, 3, 10, 16);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVEL 9 — 4×4 (Original level 12 from your spec)
+// Ball: [2,0]  Hole: [0,3]
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel9() {
+  const rows = 4, cols = 4;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
+
+  const grid = [
+    [E,  E,  E,  H],
+    [E,  E,  E,  E],
+    [B,  E,  E,  E],
+    [E,  E,  E,  E],
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "1x2", anchor: [1, 0], 
+      cells: [[1,0], [1,1]], color: "green" },
+    { id: "b1", shapeKey: "2x1", anchor: [0, 2], 
+      cells: [[0,2], [1,2]], color: "purple" },
+    { id: "b2", shapeKey: "3x1", anchor: [1, 3], 
+      cells: [[1,3], [2,3], [3,3]], color: "yellow" },
+    { id: "b3", shapeKey: "1x3", anchor: [3, 0], 
+      cells: [[3,0], [3,1], [3,2]], color: "yellow" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 2, 0, 0, 3, 11, 18);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVEL 10 — 6×6 (Original level 13 from your spec)
+// Ball: [0,0]  Hole: [5,5]
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel10() {
+  const rows = 6, cols = 6;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
+
+  const grid = [
+    [B,  E,  E,  E,  E,  E],
+    [E,  E,  L,  E,  E,  E],
+    [E,  E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  L,  H],
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "2x1", anchor: [0, 1], 
+      cells: [[0,1], [1,1]], color: "purple" },
+    { id: "b1", shapeKey: "1x3", anchor: [0, 3], 
+      cells: [[0,3], [0,4], [0,5]], color: "purple" },
+    { id: "b2", shapeKey: "1x2", anchor: [2, 0], 
+      cells: [[2,0], [2,1]], color: "teal" },
+    { id: "b3", shapeKey: "3x1", anchor: [1, 4], 
+      cells: [[1,4], [2,4], [3,4]], color: "green" },
+    { id: "b4", shapeKey: "4x1", anchor: [1, 5], 
+      cells: [[1,5], [2,5], [3,5], [4,5]], color: "orange" },
+    { id: "b5", shapeKey: "1x2", anchor: [4, 3], 
+      cells: [[4,3], [4,4]], color: "blue" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 0, 0, 5, 5, 12, 28);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVEL 11 — 6×6 (Original level 14 from your spec)
+// Ball: [2,4]  Hole: [5,5]
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel11() {
+  const rows = 6, cols = 6;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
+
+  const grid = [
+    [E,  E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  B,  E],
+    [E,  E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E,  H],
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "1x3", anchor: [0, 0], 
+      cells: [[0,0], [0,1], [0,2]], color: "blue" },
+    { id: "b1", shapeKey: "2x1", anchor: [1, 1], 
+      cells: [[1,1], [2,1]], color: "purple" },
+    { id: "b2", shapeKey: "1x3", anchor: [1, 2], 
+      cells: [[1,2], [1,3], [1,4]], color: "yellow" },
+    { id: "b3", shapeKey: "3x1", anchor: [2, 3], 
+      cells: [[2,3], [3,3], [4,3]], color: "blue" },
+    { id: "b4", shapeKey: "3x1", anchor: [2, 2], 
+      cells: [[3,2], [4,2], [5,2]], color: "blue" },
+    { id: "b5", shapeKey: "1x2", anchor: [3, 4], 
+      cells: [[3,4], [4,4]], color: "teal" },
+    { id: "b6", shapeKey: "1x2", anchor: [3, 1], 
+      cells: [[3,0], [3,1]], color: "teal" },
+    { id: "b7", shapeKey: "2x1", anchor: [4, 0], 
+      cells: [[4,0], [5,0]], color: "green" },
+    { id: "b8", shapeKey: "1x2", anchor: [5, 2], 
+      cells: [[5,3], [5,4]], color: "green" },
+    { id: "b9", shapeKey: "4x1", anchor: [0, 5], 
+      cells: [[0,5], [1,5], [2,5], [3,5]], color: "orange" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 2, 4, 5, 5, 13, 35);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVEL 12 — 6×6 (Original level 15 from your spec)
+// Ball: [5,0]  Hole: [0,0]
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel12() {
+  const rows = 6, cols = 6;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
+
+  const grid = [
+    [H,  E,  E,  E,  E,  E],
+    [L,  E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E,  E],
+    [L,  E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E,  E],
+    [B,  E,  E,  E,  E,  E],
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "1x2", anchor: [0, 2], 
+      cells: [[0,2], [0,3]], color: "purple" },
+    { id: "b1", shapeKey: "1x2", anchor: [1, 3], 
+      cells: [[1,3], [1,4]], color: "yellow" },
+    { id: "b2", shapeKey: "3x1", anchor: [2, 0], 
+      cells: [[2,0], [3,0], [4,0]], color: "green" },
+    { id: "b3", shapeKey: "1x2", anchor: [3, 1], 
+      cells: [[3,1], [3,2]], color: "purple" },
+    { id: "b4", shapeKey: "4x1", anchor: [2, 5], 
+      cells: [[2,5], [3,5], [4,5], [5,5]], color: "orange" },
+    { id: "b5", shapeKey: "1x2", anchor: [5, 2], 
+      cells: [[5,2], [5,3]], color: "blue" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 5, 0, 0, 0, 14, 32);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVEL 13 — New level (custom design)
+// Ball: [0,0]  Hole: [5,5]
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel13() {
+  const rows = 6, cols = 6;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
+
+  const grid = [
+    [B,  E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E,  E],
+    [E,  E,  L,  E,  E,  E],
+    [E,  E,  L,  E,  E,  E],
+    [E,  E,  E,  E,  E,  E],
+    [E,  E,  E,  E,  E,  H],
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "2x2", anchor: [0, 2], 
+      cells: [[0,2], [0,3], [1,2], [1,3]], color: "purple" },
+    { id: "b1", shapeKey: "3x1", anchor: [2, 4], 
+      cells: [[2,4], [3,4], [4,4]], color: "green" },
+    { id: "b2", shapeKey: "1x3", anchor: [4, 1], 
+      cells: [[4,1], [4,2], [4,3]], color: "orange" },
+    { id: "b3", shapeKey: "2x1", anchor: [3, 0], 
+      cells: [[3,0], [4,0]], color: "blue" },
+    { id: "b4", shapeKey: "1x2", anchor: [5, 3], 
+      cells: [[5,3], [5,4]], color: "yellow" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 0, 0, 5, 5, 15, 30);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVEL 14 — 6×6
+// Ball: [5,0]  Hole: [0,5]
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel14() {
+  const rows = 6, cols = 6;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
+
+  const grid = [
+    [E,  E,  E,  E,  E,  H],  // Row 0 - Hole at [0,5]
+    [E,  E,  E,  E,  E,  E],  // Row 1
+    [E,  E,  E,  E,  E,  L],  // Row 2 - Obstacle at [2,5]
+    [E,  E,  E,  E,  E,  E],  // Row 3
+    [E,  E,  E,  E,  E,  E],  // Row 4
+    [B,  E,  E,  E,  E,  L],  // Row 5 - Ball at [5,0], Obstacle at [5,5]
+  ];
+
+  const blocks = [
+    // Block 1: 1×2 (brown) at [0,0], [0,1]
+    { id: "b0", shapeKey: "1x2", anchor: [0, 0], 
+      cells: [[0,0], [0,1]], color: "yellow" },
+    
+    // Block 2: 1×2 (purple) at [0,2], [0,3]
+    { id: "b1", shapeKey: "1x2", anchor: [0, 2], 
+      cells: [[0,2], [0,3]], color: "purple" },
+    
+    // Block 3: 4×1 (orange) at [1,2], [2,2], [3,2], [4,2]
+    { id: "b2", shapeKey: "4x1", anchor: [1, 2], 
+      cells: [[1,2], [2,2], [3,2], [4,2]], color: "orange" },
+    
+    // Block 4: 3×1 (green) at [1,3], [2,3], [3,3]
+    { id: "b3", shapeKey: "3x1", anchor: [1, 3], 
+      cells: [[1,3], [2,3], [3,3]], color: "green" },
+    
+    // Block 5: 1×1 (blue) at [1,5]
+    { id: "b4", shapeKey: "1x1", anchor: [1, 5], 
+      cells: [[1,5]], color: "blue" },
+    
+    // Block 6: 2×1 (blue) at [3,4], [4,4]
+    { id: "b5", shapeKey: "2x1", anchor: [3, 4], 
+      cells: [[3,4], [4,4]], color: "blue" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 5, 0, 0, 5, 15, 30);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVEL 15 — 6×6
+// Ball: [5,0]  Hole: [0,5]
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel15() {
+  const rows = 6, cols = 6;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
+
+  const grid = [
+    [E,  E,  E,  E,  E,  H],  // Row 0 - Hole at [0,5]
+    [E,  E,  E,  E,  E,  E],  // Row 1
+    [E,  E,  E,  E,  E,  E],  // Row 2
+    [E,  E,  E,  E,  E,  E],  // Row 3
+    [E,  E,  E,  E,  E,  E],  // Row 4
+    [B,  E,  E,  E,  E,  E],  // Row 5 - Ball at [5,0]
+  ];
+
+  const blocks = [
+    // Block 1: 1×3 (blue) at [0,0], [0,1], [0,2]
+    { id: "b0", shapeKey: "1x3", anchor: [0, 0], 
+      cells: [[0,0], [0,1], [0,2]], color: "blue" },
+    
+    // Block 2: 1×2 (purple) at [0,3], [0,4]
+    { id: "b1", shapeKey: "1x2", anchor: [0, 3], 
+      cells: [[0,3], [0,4]], color: "purple" },
+    
+    // Block 3: 3×1 (orange) at [1,2], [2,2], [3,2]
+    { id: "b2", shapeKey: "3x1", anchor: [1, 2], 
+      cells: [[1,2], [2,2], [3,2]], color: "orange" },
+    
+    // Block 4: 2×1 (green) at [1,3], [2,3]
+    { id: "b3", shapeKey: "2x1", anchor: [1, 3], 
+      cells: [[1,3], [2,3]], color: "green" },
+    
+    // Block 5: 2×1 (purple) at [2,5], [3,5]
+    { id: "b4", shapeKey: "2x1", anchor: [2, 5], 
+      cells: [[2,5], [3,5]], color: "purple" },
+    
+    // Block 6: 1×3 (blue) at [2,0], [2,1], [2,2]
+    { id: "b5", shapeKey: "1x3", anchor: [2, 0], 
+      cells: [[2,0], [2,1], [2,2]], color: "blue" },
+    
+    // Block 7: 2×1 (green) at [4,2], [5,2]
+    { id: "b6", shapeKey: "2x1", anchor: [4, 2], 
+      cells: [[4,2], [5,2]], color: "green" },
+    
+    // Block 8: 2×1 (brown) at [4,3], [5,3]
+    { id: "b7", shapeKey: "2x1", anchor: [4, 3], 
+      cells: [[4,3], [5,3]], color: "yellow" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 5, 0, 0, 5, 16, 38);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVEL 16 — 6×6
+// Ball: [0,0]  Hole: [5,5]
+// ─────────────────────────────────────────────────────────────────────────────
+function _buildHardcodedLevel16() {
+  const rows = 6, cols = 6;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
+
+  const grid = [
+    [B,  E,  E,  E,  E,  E],  // Row 0 - Ball at [0,0]
+    [E,  E,  E,  E,  E,  E],  // Row 1
+    [E,  E,  E,  E,  E,  E],  // Row 2
+    [E,  E,  E,  E,  E,  E],  // Row 3
+    [E,  E,  E,  E,  E,  E],  // Row 4
+    [E,  E,  E,  E,  E,  H],  // Row 5 - Hole at [5,5]
+  ];
+
+  const blocks = [
+    // Block 1: 1×2 (brown) at [0,1], [0,2]
+    { id: "b0", shapeKey: "1x2", anchor: [0, 1], 
+      cells: [[0,1], [0,2]], color: "teal" },
+    
+    // Block 2: 2×1 (purple) at [1,2], [2,2]
+    { id: "b1", shapeKey: "2x1", anchor: [1, 2], 
+      cells: [[1,2], [2,2]], color: "purple" },
+    
+    // Block 3: 3×1 (blue) at [1,3], [2,3], [3,3]
+    { id: "b2", shapeKey: "3x1", anchor: [1, 3], 
+      cells: [[1,3], [2,3], [3,3]], color: "yellow" },
+    
+    // Block 4: 4×1 (orange) at [0,4], [1,4], [2,4], [3,4]
+    { id: "b3", shapeKey: "4x1", anchor: [0, 4], 
+      cells: [[0,4], [1,4], [2,4], [3,4]], color: "orange" },
+    
+    // Block 5: 1×2 (green) at [2,0], [2,1]
+    { id: "b4", shapeKey: "1x2", anchor: [2, 0], 
+      cells: [[2,0], [2,1]], color: "green" },
+    
+    // Block 6: 2×1 (brown) at [3,1], [4,1]
+    { id: "b5", shapeKey: "2x1", anchor: [3, 1], 
+      cells: [[3,1], [4,1]], color: "teal" },
+    
+    // Block 7: 1×3 (blue) at [4,2], [4,3], [4,4]
+    { id: "b6", shapeKey: "1x3", anchor: [4, 2], 
+      cells: [[4,2], [4,3], [4,4]], color: "blue" },
+    
+    // Block 8: 1×2 (green) at [5,2], [5,3]
+    { id: "b7", shapeKey: "1x2", anchor: [5, 2], 
+      cells: [[5,2], [5,3]], color: "green" },
+    
+    // Block 9: 2×1 (purple) at [4,0], [5,0]
+    { id: "b8", shapeKey: "2x1", anchor: [4, 0], 
+      cells: [[4,0], [5,0]], color: "purple" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 0, 0, 5, 5, 17, 42);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared finalizer for hardcoded levels
+// ─────────────────────────────────────────────────────────────────────────────
+function _finalizeHardcoded(grid, rows, cols, blocks, ballR, ballC, holeR, holeC, levelNumber, moveLimit) {
+  // Stamp block cells into grid
+  for (const block of blocks) {
+    for (const [r, c] of block.cells) {
+      if (r >= 0 && r < rows && c >= 0 && c < cols) {
+        grid[r][c] = block.id;
+      }
+    }
+  }
+
+  // Ensure ball and hole are correctly set
+  grid[ballR][ballC] = CELL_BALL;
+  grid[holeR][holeC] = CELL_HOLE;
+
+  const level = {
+    rows, cols, grid, blocks,
+    moveLimit: moveLimit,
+    levelNumber,
+    _solutionLen: null,
+    hardcoded: true
   };
-
-  return { gridRows, gridCols, minBlocks, maxBlocks, minLocks, maxLocks, targetSolutionLen, requiredShapes, features, level: L };
+  
+  level.backgroundGrid = cloneGrid(level.grid);
+  return level;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 🎯 CORE GENERATION — With SOLVABLE block placement
+// UTILITIES
 // ─────────────────────────────────────────────────────────────────────────────
-function _tryGenerate(rows, cols, tier, levelNumber, rng) {
-  const grid = _emptyGrid(rows, cols);
-  const ballR = Math.floor(rng() * rows);
-  let holeR; do { holeR = Math.floor(rng() * rows); } while (Math.abs(holeR - ballR) < 2);
-  grid[ballR][0] = CELL_BALL; grid[holeR][cols - 1] = CELL_HOLE;
-
-  // Place locks first (they're static obstacles)
-  const lockCount = tier.minLocks + Math.floor(rng() * (tier.maxLocks - tier.minLocks + 1));
-  _placeStrategicLocks(grid, rows, cols, ballR, holeR, lockCount, tier.features, rng);
-
-  // 🎯 PLACE BLOCKS WITH SOLVABILITY GUARANTEE
-  const blocks = [];
-  const colorPool = [...BLOCK_COLORS]; _shuffleArray(colorPool, rng);
-  const blockCount = tier.minBlocks + Math.floor(rng() * (tier.maxBlocks - tier.minBlocks + 1));
-
-  // Place required shapes with movability validation
-  for (let i = 0; i < tier.requiredShapes.length; i++) {
-    const shapeKey = tier.requiredShapes[i];
-    const offsets = BLOCK_SHAPES[shapeKey];
-    const color = colorPool[i % colorPool.length];
-    
-    const block = _placeSolvableBlock(grid, rows, cols, ballR, holeR, blocks,
-      "b" + i, shapeKey, offsets, color, "required", tier.features, rng);
-    if (!block) return null; // Fast fail if critical block can't be placed solvably
-    blocks.push(block);
-  }
-
-  // Fill remaining blocks with solvability checks
-  const shapePool = _getStrategicShapePool(tier.level, rng);
-  for (let i = tier.requiredShapes.length; i < blockCount; i++) {
-    const shapeKey = shapePool[Math.floor(rng() * shapePool.length)];
-    const offsets = BLOCK_SHAPES[shapeKey];
-    const color = colorPool[i % colorPool.length];
-    const placementType = _selectPlacementStrategy(i, blockCount, tier.features, rng);
-    
-    const block = _placeSolvableBlock(grid, rows, cols, ballR, holeR, blocks,
-      "b" + i, shapeKey, offsets, color, placementType, tier.features, rng);
-    if (!block) return null;
-    blocks.push(block);
-  }
-
-  if (blocks.length < tier.minBlocks) return null;
-
-  // 🎯 BFS validation
-  const result = _bfs(grid, blocks, ballR, 0, holeR, cols - 1, BFS_DISCOVERY_LIMIT);
-  if (!result.solvable) return null;
-  if (tier.level >= 4 && result.shortestPath < tier.targetSolutionLen * 0.7) return null;
-
-  // Repair if too complex
-  if (result.shortestPath > tier.targetSolutionLen) {
-    const repaired = _repairLevel(grid, blocks, ballR, holeR, cols, tier, rng);
-    if (repaired && _verifySolvable(repaired.grid, repaired.blocks, ballR, 0, holeR, cols - 1, repaired.moveLimit)) {
-      return repaired;
-    }
-    return null;
-  }
-
-  const baseBuffer = tier.level < 4 ? 4 : 5;
-  const strategyBuffer = _calculateStrategyBuffer(blocks, tier.features);
-  const buffer = Math.min(12, baseBuffer + strategyBuffer);
-  const moveLimit = result.shortestPath + buffer;
-
-  if (!_verifySolvable(grid, blocks, ballR, 0, holeR, cols - 1, moveLimit)) return null;
-
-  return {
-    rows, cols, grid, blocks, moveLimit, levelNumber, _solutionLen: result.shortestPath,
-    difficulty: {
-      locks: lockCount, blocks: blocks.length,
-      complexShapes: blocks.filter(b => b.shapeKey !== "1x1").length,
-      solutionLen: result.shortestPath, buffer,
-      strategyScore: _calculateStrategyScore(blocks, grid, ballR, holeR, tier.features)
-    }
-  };
+function cloneGrid(grid) { 
+  return grid.map(row => row.slice()); 
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 🎯 KEY FIX: Place block ONLY if it remains movable and solvable
-// ─────────────────────────────────────────────────────────────────────────────
-function _placeSolvableBlock(grid, rows, cols, ballR, holeR, existingBlocks, id, shapeKey, offsets, color, placementType, features, rng) {
-  const maxDR = Math.max(...offsets.map(([dr]) => dr));
-  const maxDC = Math.max(...offsets.map(([, dc]) => dc));
-  const maxAttempts = placementType === "required" ? 800 : 500;
-
-  for (let a = 0; a < maxAttempts; a++) {
-    let aR, aC;
-
-    // Strategic positioning
-    switch(placementType) {
-      case "required": case "chokepoint":
-        aR = _biasedRandom(Math.min(ballR, holeR), Math.max(ballR, holeR) - maxDR, 0.7, rng);
-        aC = Math.floor(cols * 0.3) + Math.floor(rng() * (cols * 0.4 - maxDC)); break;
-      case "detour": aR = ballR + Math.floor(rng() * 3) - 1; aC = 3 + Math.floor(rng() * 2); break;
-      case "clearance": aR = Math.floor(rng() * (rows - maxDR)); aC = Math.floor(cols * 0.4 + rng() * cols * 0.3 - maxDC); break;
-      case "trap": aR = holeR + Math.floor(rng() * 3) - 1; aC = cols - 5 + Math.floor(rng() * 3); break;
-      default:
-        if (a < maxAttempts * 0.6) {
-          aR = _biasedRandom(Math.max(0, Math.min(ballR, holeR) - 1), Math.min(rows - maxDR - 1, Math.max(ballR, holeR) + 1), 0.6, rng);
-          aC = Math.floor(cols * 0.25) + Math.floor(rng() * (cols * 0.5 - maxDC));
-        } else { aR = Math.floor(rng() * (rows - maxDR)); aC = Math.floor(rng() * (cols - maxDC)); }
-    }
-
-    // Bounds check
-    if (aR < 0 || aR + maxDR >= rows || aC < 0 || aC + maxDC >= cols) continue;
-
-    const cells = offsets.map(([dr, dc]) => [aR + dr, aC + dc]);
-    
-    // Collision check
-    let valid = true;
-    for (const [r, c] of cells) {
-      if (r < 0 || r >= rows || c < 0 || c >= cols) { valid = false; break; }
-      if (grid[r][c] !== CELL_EMPTY) { valid = false; break; }
-      if ((c === 0 || c === cols - 1) && a < 400) { valid = false; break; }
-    }
-    if (!valid) continue;
-
-    // 🎯 CRITICAL: Check if block can move AFTER placement (at least one direction)
-    if (!_blockHasEscapeRoute(grid, rows, cols, cells, shapeKey)) continue;
-
-    // 🎯 CRITICAL: Check if placement isolates ball or hole
-    const testGrid = cloneGrid(grid);
-    for (const [r, c] of cells) testGrid[r][c] = id;
-    if (!_floodFillReachable(testGrid, rows, cols, ballR, 0, holeR, cols - 1)) continue;
-
-    // 🎯 CRITICAL: Quick BFS to verify solvability with this block
-    const testBlocks = [...existingBlocks, { id, shapeKey, anchor: [aR, aC], cells, color }];
-    const quickResult = _bfsQuick(testGrid, testBlocks, ballR, 0, holeR, cols - 1, 50);
-    if (!quickResult.solvable) continue;
-
-    // ✅ All checks passed — place the block
-    for (const [r, c] of cells) grid[r][c] = id;
-    return { id, shapeKey, anchor: [aR, aC], cells, color, placementType };
-  }
-  return null;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 🎯 CHECK: Does this block have at least one valid move direction?
-// ─────────────────────────────────────────────────────────────────────────────
-function _blockHasEscapeRoute(grid, rows, cols, cells, shapeKey) {
-  // Check each of 4 directions for at least one valid move
-  for (const dir of DIR_KEYS) {
-    const { dr, dc } = DIRECTIONS[dir];
-    let canMove = true;
-    
-    for (const [r, c] of cells) {
-      const nr = r + dr, nc = c + dc;
-      // Bounds check
-      if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) { canMove = false; break; }
-      // Collision check (allow empty, hole, ball)
-      const cell = grid[nr][nc];
-      if (cell !== CELL_EMPTY && cell !== CELL_HOLE && cell !== CELL_BALL) {
-        // Allow moving into cells occupied by same block (will be vacated)
-        if (typeof cell === 'string' && cells.some(([cr, cc]) => cr === nr && cc === nc)) continue;
-        canMove = false; break;
-      }
-    }
-    if (canMove) return true; // Found at least one escape route
-  }
-  return false; // Block is trapped — cannot move in any direction
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 🎯 QUICK BFS for pre-placement solvability check (limited depth)
-// ─────────────────────────────────────────────────────────────────────────────
-function _bfsQuick(grid, blocks, ballR, ballC, holeR, holeC, maxDepth) {
-  const initKey = serializeState(ballR, ballC, blocks);
-  const visited = new Set([initKey]);
-  const queue = [{ br: ballR, bc: ballC, blks: cloneBlocks(blocks), g: cloneGrid(grid), moves: 0 }];
-
-  while (queue.length > 0) {
-    const state = queue.shift();
-    const { br, bc, blks, g, moves } = state;
-    if (moves >= maxDepth) continue;
-
-    // Ball moves
-    for (const dir of DIR_KEYS) {
-      const { dr, dc } = DIRECTIONS[dir];
-      const nr = br + dr, nc = bc + dc;
-      if (nr < 0 || nr >= g.length || nc < 0 || nc >= g[0].length) continue;
-      const cell = g[nr][nc];
-      if (cell !== CELL_EMPTY && cell !== CELL_HOLE) continue;
-      if (nr === holeR && nc === holeC) return { solvable: true };
-
-      const gC = cloneGrid(g), bC = cloneBlocks(blks);
-      gC[br][bc] = CELL_EMPTY; gC[nr][nc] = CELL_BALL;
-      stampBlocks(gC, bC);
-      const key = serializeState(nr, nc, bC);
-      if (!visited.has(key)) { visited.add(key); queue.push({ br: nr, bc: nc, blks: bC, g: gC, moves: moves + 1 }); }
-    }
-
-    // Block moves (limited)
-    for (const block of blks.slice(0, 3)) { // Only check first 3 blocks for speed
-      for (const dir of DIR_KEYS) {
-        const gC = cloneGrid(g), bC = cloneBlocks(blks);
-        stampBlocks(gC, bC);
-        const sim = bC.find(b => b.id === block.id);
-        if (!sim || !canBlockMove(gC, sim, dir)) continue;
-        const { dr, dc } = DIRECTIONS[dir];
-        for (const [r, c] of sim.cells) gC[r][c] = CELL_EMPTY;
-        sim.cells = sim.cells.map(([r, c]) => [r + dr, c + dc]);
-        sim.anchor = [sim.anchor[0] + dr, sim.anchor[1] + dc];
-        for (const [r, c] of sim.cells) gC[r][c] = sim.id;
-        const key = serializeState(br, bc, bC);
-        if (!visited.has(key)) { visited.add(key); queue.push({ br, bc, blks: bC, g: gC, moves: moves + 1 }); }
-      }
-    }
-  }
-  return { solvable: false };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Strategic Lock Placement (unchanged, but included for completeness)
-// ─────────────────────────────────────────────────────────────────────────────
-function _placeStrategicLocks(grid, rows, cols, ballR, holeR, count, features, rng) {
-  const placed = [];
-  for (let i = 0; i < count * 2 && placed.length < count; i++) {
-    let r, c, strategy;
-    if (features.chokepointGates && rng() > 0.3) {
-      r = Math.min(ballR, holeR) + Math.floor(rng() * (Math.abs(holeR - ballR) + 1));
-      c = Math.floor(cols * 0.35 + rng() * cols * 0.3); strategy = "chokepoint";
-    } else if (features.forcedDetours && rng() > 0.5) {
-      r = ballR + Math.floor(rng() * 3) - 1; c = 2 + Math.floor(rng() * 2); strategy = "detour";
-    } else if (features.trapZones && rng() > 0.6) {
-      r = holeR + Math.floor(rng() * 3) - 1; c = cols - 4 + Math.floor(rng() * 2); strategy = "trap";
-    } else { r = Math.floor(rng() * rows); c = Math.floor(cols * 0.25 + rng() * cols * 0.5); strategy = "standard"; }
-    
-    if (r < 0 || r >= rows || c <= 0 || c >= cols - 1) continue;
-    if (grid[r][c] !== CELL_EMPTY) continue;
-    const nearStart = (Math.abs(r - ballR) <= 1 && c <= 2);
-    const nearEnd = (Math.abs(r - holeR) <= 1 && c >= cols - 3);
-    if (nearStart || nearEnd) continue;
-    if (_wouldIsolateHole(grid, rows, cols, ballR, 0, holeR, cols-1, r, c)) continue;
-    
-    grid[r][c] = CELL_LOCK; placed.push({r, c, strategy});
-  }
-  return placed;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Placement Strategy Selector
-// ─────────────────────────────────────────────────────────────────────────────
-function _selectPlacementStrategy(index, total, features, rng) {
-  if (index === 0) return "chokepoint";
-  const weights = [], strategies = [];
-  strategies.push("standard"); weights.push(40);
-  if (features.chokepointGates) { strategies.push("chokepoint"); weights.push(25); }
-  if (features.forcedDetours) { strategies.push("detour"); weights.push(15); }
-  if (features.multiStepClearance && index > total * 0.4) { strategies.push("clearance"); weights.push(10); }
-  if (features.trapZones && index > total * 0.6) { strategies.push("trap"); weights.push(10); }
-  return _weightedRandom(strategies, weights, rng);
-}
-
-function _getStrategicShapePool(level, rng) {
-  const pool = [];
-  if (level < 4) pool.push("1x1", "1x1", "1x2", "2x1", "2x2");
-  else if (level < 7) { pool.push("1x1", "1x2", "2x1"); pool.push("2x2", "2x2"); pool.push("L1", "L1", "T1"); }
-  else if (level < 10) { pool.push("1x1", "1x2"); pool.push("2x2", "L1", "T1", "Z1", "S1"); }
-  else { pool.push("1x1"); pool.push("2x2", "L1", "T1", "Z1", "S1", "1x3", "3x1"); }
-  return pool;
-}
-
-function _biasedRandom(min, max, biasTowardsMin, rng) {
-  const r = rng(); const exponent = biasTowardsMin > 0.5 ? 1.5 : 0.7;
-  return min + Math.floor(Math.pow(r, exponent) * (max - min + 1));
-}
-
-function _weightedRandom(items, weights, rng) {
-  const total = weights.reduce((a, b) => a + b, 0); let rand = rng() * total;
-  for (let i = 0; i < items.length; i++) { if (rand < weights[i]) return items[i]; rand -= weights[i]; }
-  return items[items.length - 1];
-}
-
-function _shuffleArray(array, rng) {
-  for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Connectivity Checks
-// ─────────────────────────────────────────────────────────────────────────────
-function _wouldIsolateHole(grid, rows, cols, startR, startC, endR, endC, blockR, blockC) {
-  const testGrid = cloneGrid(grid);
-  if (blockR >= 0 && blockR < rows && blockC >= 0 && blockC < cols) testGrid[blockR][blockC] = CELL_LOCK;
-  if (_floodFillReachable(testGrid, rows, cols, startR, startC, endR, endC)) return false;
-  return !_hasOpenCorridor(testGrid, rows, cols, startR, endR, blockR, blockC);
-}
-
-function _floodFillReachable(grid, rows, cols, startR, startC, endR, endC) {
-  const visited = new Set(); const queue = [[startR, startC]]; visited.add(startR + ',' + startC);
-  while (queue.length > 0) {
-    const [r, c] = queue.shift(); if (r === endR && c === endC) return true;
-    for (const {dr, dc} of Object.values(DIRECTIONS)) {
-      const nr = r + dr, nc = c + dc, key = nr + ',' + nc;
-      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited.has(key) && grid[nr][nc] !== CELL_LOCK && grid[nr][nc] !== CELL_BALL) {
-        visited.add(key); queue.push([nr, nc]);
-      }
-    }
-  }
-  return false;
-}
-
-function _hasOpenCorridor(grid, rows, cols, ballR, holeR, blockR, blockC) {
-  const minR = Math.min(ballR, holeR), maxR = Math.max(ballR, holeR);
-  for (let r = minR; r <= maxR; r++) {
-    let openPath = true;
-    for (let c = 1; c < cols - 1; c++) {
-      if (grid[r][c] === CELL_LOCK || (r === blockR && c === blockC)) {
-        if (r > minR && grid[r-1][c] !== CELL_LOCK) continue;
-        if (r < maxR && grid[r+1][c] !== CELL_LOCK) continue;
-        openPath = false; break;
-      }
-    }
-    if (openPath) return true;
-  }
-  return false;
-}
-
-function _calculateStrategyScore(blocks, grid, ballR, holeR, features) {
-  let score = 0;
-  const corridorBlocks = blocks.filter(b => { const avgC = b.cells.reduce((s, [,c]) => s + c, 0) / b.cells.length; return avgC > grid[0].length * 0.25 && avgC < grid[0].length * 0.75; });
-  score += corridorBlocks.filter(b => b.shapeKey !== "1x1").length * 3;
-  score += new Set(blocks.map(b => b.shapeKey)).size * 2;
-  return score;
-}
-
-function _calculateStrategyBuffer(blocks, features) {
-  return Math.floor(blocks.filter(b => b.shapeKey !== "1x1").length * 0.4) + (features.multiStepClearance ? 2 : 0);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// BFS Solver
-// ─────────────────────────────────────────────────────────────────────────────
-function _bfs(grid, blocks, ballR, ballC, holeR, holeC, maxMoves) {
-  const initKey = serializeState(ballR, ballC, blocks);
-  const visited = new Set([initKey]);
-  const queue = [{ br: ballR, bc: ballC, blks: cloneBlocks(blocks), g: cloneGrid(grid), moves: 0 }];
-
-  while (queue.length > 0) {
-    if (visited.size > MAX_BFS_STATES) return { solvable: false, shortestPath: Infinity };
-    const state = queue.shift();
-    const { br, bc, blks, g, moves } = state;
-    if (moves >= maxMoves) continue;
-
-    for (const dir of DIR_KEYS) {
-      const { dr, dc } = DIRECTIONS[dir];
-      const nr = br + dr, nc = bc + dc;
-      if (nr < 0 || nr >= g.length || nc < 0 || nc >= g[0].length) continue;
-      const cell = g[nr][nc];
-      if (cell !== CELL_EMPTY && cell !== CELL_HOLE) continue;
-      if (nr === holeR && nc === holeC) return { solvable: true, shortestPath: moves + 1 };
-      const gC = cloneGrid(g), bC = cloneBlocks(blks);
-      gC[br][bc] = CELL_EMPTY; gC[nr][nc] = CELL_BALL;
-      stampBlocks(gC, bC);
-      const key = serializeState(nr, nc, bC);
-      if (!visited.has(key)) { visited.add(key); queue.push({ br: nr, bc: nc, blks: bC, g: gC, moves: moves + 1 }); }
-    }
-
-    for (const block of blks) {
-      for (const dir of DIR_KEYS) {
-        const gC = cloneGrid(g), bC = cloneBlocks(blks);
-        stampBlocks(gC, bC);
-        const sim = bC.find(b => b.id === block.id);
-        if (!sim || !canBlockMove(gC, sim, dir)) continue;
-        const { dr, dc } = DIRECTIONS[dir];
-        for (const [r, c] of sim.cells) gC[r][c] = CELL_EMPTY;
-        sim.cells = sim.cells.map(([r, c]) => [r + dr, c + dc]);
-        sim.anchor = [sim.anchor[0] + dr, sim.anchor[1] + dc];
-        for (const [r, c] of sim.cells) gC[r][c] = sim.id;
-        const key = serializeState(br, bc, bC);
-        if (!visited.has(key)) { visited.add(key); queue.push({ br, bc, blks: bC, g: gC, moves: moves + 1 }); }
-      }
-    }
-  }
-  return { solvable: false, shortestPath: Infinity };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Verification & Repair
-// ─────────────────────────────────────────────────────────────────────────────
-function _verifySolvable(grid, blocks, ballR, ballC, holeR, holeC, moveLimit) {
-  const result = _bfs(grid, blocks, ballR, ballC, holeR, holeC, moveLimit + 20);
-  return result.solvable && result.shortestPath <= moveLimit;
-}
-
-function _repairLevel(grid, blocks, ballR, holeR, cols, tier, rng) {
-  const sorted = [...blocks].sort((a, b) => {
-    const aD = Math.abs(a.anchor[0] - holeR), bD = Math.abs(b.anchor[0] - holeR);
-    return (bD - aD) || (a.shapeKey === "1x1" ? 1 : -1);
-  });
-  for (let removeCount = 1; removeCount <= 3; removeCount++) {
-    const testGrid = cloneGrid(grid), testBlocks = cloneBlocks(blocks);
-    for (let i = 0; i < removeCount; i++) {
-      for (const [r, c] of sorted[i].cells) if (testGrid[r][c] === sorted[i].id) testGrid[r][c] = CELL_EMPTY;
-    }
-    const remaining = testBlocks.filter(b => !sorted.slice(0, removeCount).some(rb => rb.id === b.id));
-    const result = _bfs(testGrid, remaining, ballR, 0, holeR, cols - 1, BFS_DISCOVERY_LIMIT);
-    if (result.solvable && result.shortestPath <= tier.targetSolutionLen) {
-      return { rows: grid.length, cols: grid[0].length, grid: testGrid, blocks: remaining,
-        moveLimit: result.shortestPath + Math.min(12, 5 + Math.floor(tier.level / 4)),
-        levelNumber: tier.level, _solutionLen: result.shortestPath, repaired: true };
-    }
-  }
-  return null;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Fallback Levels
-// ─────────────────────────────────────────────────────────────────────────────
-function _fallbackLevel(tier, levelNumber, rng, makeHard) {
-  const { gridRows: rows, gridCols: cols } = tier;
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const grid = _emptyGrid(rows, cols);
-    const ballR = Math.floor(rng() * rows); let holeR;
-    do { holeR = Math.floor(rng() * rows); } while (Math.abs(holeR - ballR) < 2);
-    grid[ballR][0] = CELL_BALL; grid[holeR][cols - 1] = CELL_HOLE;
-
-    const lockCount = makeHard ? tier.minLocks : Math.max(2, Math.floor(tier.minLocks * 0.6));
-    _placeStrategicLocks(grid, rows, cols, ballR, holeR, lockCount, tier.features, rng);
-
-    const blocks = [], colors = [...BLOCK_COLORS];
-    const blockCount = makeHard ? tier.minBlocks : Math.max(4, Math.floor(tier.minBlocks * 0.7));
-    const shapePool = _getStrategicShapePool(tier.level, rng);
-
-    for (let i = 0; i < blockCount; i++) {
-      const r = Math.floor(rows * 0.3 + rng() * rows * 0.4), c = Math.floor(cols * 0.3 + rng() * cols * 0.4);
-      if (r < 0 || r >= rows || c < 0 || c >= cols || grid[r][c] !== CELL_EMPTY) continue;
-      const id = "b" + i;
-      const shapeKey = (tier.level >= 4 && i === 0) ? "2x2" : shapePool[Math.floor(rng() * shapePool.length)];
-      const offsets = BLOCK_SHAPES[shapeKey], cells = offsets.map(([dr, dc]) => [r + dr, c + dc]);
-      if (cells.every(([cr, cc]) => cr >= 0 && cr < rows && cc >= 0 && cc < cols && grid[cr][cc] === CELL_EMPTY)) {
-        // 🎯 Check escape route for fallback blocks too
-        if (!_blockHasEscapeRoute(grid, rows, cols, cells, shapeKey)) continue;
-        for (const [cr, cc] of cells) grid[cr][cc] = id;
-        blocks.push({ id, shapeKey, anchor: [r, c], cells, color: colors[i % colors.length] || "purple", placementType: "fallback" });
-      } else {
-        grid[r][c] = id;
-        blocks.push({ id, shapeKey: "1x1", anchor: [r, c], cells: [[r, c]], color: colors[i % colors.length] || "purple", placementType: "fallback" });
-      }
-    }
-
-    stampBlocks(grid, blocks);
-    const result = _bfs(grid, blocks, ballR, 0, holeR, cols - 1, BFS_DISCOVERY_LIMIT);
-    if (!result.solvable) continue;
-    const buffer = Math.min(10, 5 + Math.floor(tier.level / 4) + _calculateStrategyBuffer(blocks, tier.features));
-    const moveLimit = result.shortestPath + buffer;
-    if (!_verifySolvable(grid, blocks, ballR, 0, holeR, cols - 1, moveLimit)) continue;
-
-    const level = { rows, cols, grid, blocks, moveLimit, levelNumber, _solutionLen: result.shortestPath };
-    level.backgroundGrid = cloneGrid(grid); return level;
-  }
-  return _guaranteedSolvableLevel(tier, levelNumber, rng);
-}
-
-function _guaranteedSolvableLevel(tier, levelNumber, rng) {
-  const { gridRows: rows, gridCols: cols } = tier;
-  const grid = _emptyGrid(rows, cols);
-  const ballR = Math.floor(rows * 0.3 + rng() * rows * 0.4), holeR = ballR;
-  grid[ballR][0] = CELL_BALL; grid[holeR][cols - 1] = CELL_HOLE;
-  const corridorRow = ballR, blocks = [], colors = [...BLOCK_COLORS];
-  const blockCount = Math.max(2, Math.floor(tier.minBlocks * 0.6));
-
-  for (let i = 0; i < blockCount; i++) {
-    let r; do { r = Math.floor(rng() * rows); } while (r === corridorRow);
-    const c = Math.floor(cols * 0.2 + rng() * cols * 0.6);
-    if (c >= 1 && c < cols - 1 && r >= 0 && r < rows && grid[r][c] === CELL_EMPTY) {
-      const id = "b" + i, shapeKey = (tier.level >= 4 && i === 0) ? "2x2" : "1x1";
-      const offsets = BLOCK_SHAPES[shapeKey], cells = offsets.map(([dr, dc]) => [r + dr, c + dc]);
-      const spills = cells.some(([cr]) => cr === corridorRow);
-      const fits = !spills && cells.every(([cr, cc]) => cr >= 0 && cr < rows && cc >= 0 && cc < cols && grid[cr][cc] === CELL_EMPTY);
-      if (fits) {
-        for (const [cr, cc] of cells) grid[cr][cc] = id;
-        blocks.push({ id, shapeKey, anchor: [r, c], cells, color: colors[i % colors.length] || "purple" });
-      } else { grid[r][c] = id; blocks.push({ id, shapeKey: "1x1", anchor: [r, c], cells: [[r, c]], color: colors[i % colors.length] || "purple" }); }
-    }
-  }
-
-  const lockCount = Math.min(3, Math.floor(tier.minLocks * 0.5));
-  for (let i = 0; i < lockCount; i++) {
-    let r, c, attempts = 0;
-    do { r = Math.floor(rng() * rows); c = Math.floor(cols * 0.3 + rng() * cols * 0.4); attempts++; }
-    while (attempts < 50 && (r === corridorRow || c <= 0 || c >= cols - 1 || grid[r][c] !== CELL_EMPTY));
-    if (attempts < 50 && r >= 0 && r < rows && c >= 0 && c < cols) grid[r][c] = CELL_LOCK;
-  }
-
-  stampBlocks(grid, blocks);
-  const directPath = cols - 1, buffer = Math.max(5, Math.floor(tier.level / 3)), moveLimit = directPath + buffer;
-  const level = { rows, cols, grid, blocks, moveLimit, levelNumber, _solutionLen: directPath, guaranteed: true };
-  level.backgroundGrid = cloneGrid(grid); return level;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Utilities
-// ─────────────────────────────────────────────────────────────────────────────
-function _emptyGrid(rows, cols) { return Array.from({ length: rows }, () => Array(cols).fill(CELL_EMPTY)); }
-function cloneGrid(grid) { return grid.map(row => row.slice()); }
 function cloneBlocks(blocks) {
-  return blocks.map(b => ({ id: b.id, shapeKey: b.shapeKey, anchor: [...b.anchor], cells: b.cells.map(([r, c]) => [r, c]), color: b.color, placementType: b.placementType }));
+  return blocks.map(b => ({
+    id: b.id, shapeKey: b.shapeKey,
+    anchor: [...b.anchor],
+    cells: b.cells.map(([r, c]) => [r, c]),
+    color: b.color,
+    placementType: b.placementType
+  }));
 }
 
-console.log('✅ levelGenerator.js loaded — Strategic Block Placement Mode');
+function stampBlocks(grid, blocks) {
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < grid[0].length; c++) {
+      const val = grid[r][c];
+      if (typeof val === 'string' && val.startsWith('b')) {
+        grid[r][c] = CELL_EMPTY;
+      }
+    }
+  }
+  for (const block of blocks) {
+    for (const [r, c] of block.cells) {
+      if (r >= 0 && r < grid.length && c >= 0 && c < grid[0].length) {
+        grid[r][c] = block.id;
+      }
+    }
+  }
+}
+
+function canBlockMove(grid, block, dir) {
+  const { dr, dc } = DIRECTIONS[dir];
+  for (const [r, c] of block.cells) {
+    const nr = r + dr, nc = c + dc;
+    if (nr < 0 || nr >= grid.length || nc < 0 || nc >= grid[0].length) return false;
+    const cell = grid[nr][nc];
+    if (cell !== CELL_EMPTY && cell !== CELL_HOLE && cell !== CELL_BALL) {
+      const isSelf = block.cells.some(([cr, cc]) => cr === nr && cc === nc);
+      if (!isSelf) return false;
+    }
+  }
+  return true;
+}
