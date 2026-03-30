@@ -113,6 +113,7 @@ class LevelManager {
   skip() {
     console.log(`[LevelManager] Skipping level ${this.levelNumber}`);
     // Clear saved data to force fresh generation
+    this.levelNumber++;
     this._savedGrid = null;
     this._savedBlocks = null;
     this._savedLevelNum = null;
