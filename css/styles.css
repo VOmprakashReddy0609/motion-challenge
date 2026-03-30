@@ -948,3 +948,40 @@ body {
   border: 1px dashed rgba(147, 51, 234, 0.3); /* Subtle purple dashed border */
   pointer-events: none;
 }
+
+#site-footer {
+  padding: 0 2rem;
+}
+.footer-wrap {
+  border-top: 1px solid rgba(0,0,0,0.1);
+  padding: 1.25rem 0 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.footer-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.footer-label {
+  font-size: 12px;
+  color: #888;
+}
+.footer-email {
+  font-size: 13px;
+  text-decoration: none;
+  padding: 4px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  color: inherit;
+}
+.footer-email:hover {
+  background: rgba(0,0,0,0.04);
+}
