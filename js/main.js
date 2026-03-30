@@ -126,14 +126,14 @@ function toggleTheme() {
       progressBarFill.style.width = Math.min(100, pct) + '%';
     }
 
-    console.log(`[HUD] Level ${lvl}, Score ${score}, Time: ${_timerSeconds}s`);
+    
   }
 
   // ── Level lifecycle ────────────────────────────────────────────────────────
 
   function startLevel() {
     if (!isGameActive || !levelManager) {
-      console.log('[Game] Cannot start level — game not active');
+     
       return;
     }
 
@@ -147,15 +147,11 @@ function toggleTheme() {
 
     const level = levelManager.getCurrent();
     if (!level) { 
-      console.error('[Game] No level to load!'); 
+      
       return; 
     }
 
-    console.log(
-      `[Game] Starting level ${level.levelNumber} | ` +
-      `${level.rows}×${level.cols} | ${level.blocks.length} blocks | ` +
-      `move limit: ${level.moveLimit}`
-    );
+    
 
     // Clean up old engine
     if (engine) { 
@@ -183,7 +179,7 @@ function toggleTheme() {
     if (!isGameActive || _isTransitioning) return;
     _isTransitioning = true;
 
-    console.log(`[Game] Level ${levelManager.getLevelNumber()} won in ${movesTaken} moves.`);
+    
 
     levelManager.recordWin(movesTaken);
     _updateHUD();
@@ -202,7 +198,7 @@ function toggleTheme() {
         _isTransitioning = false;
         startLevel();
       }).catch(err => {
-        console.error('[Game] Error advancing level:', err);
+      
         _isTransitioning = false;
         // Try to continue anyway
         startLevel();
@@ -216,7 +212,7 @@ function toggleTheme() {
     if (!isGameActive || _isTransitioning) return;
     _isTransitioning = true;
 
-    console.log(`[Game] Level ${levelManager.getLevelNumber()} failed.`);
+  
 
     levelManager.recordLose();
     _updateHUD();
@@ -233,7 +229,7 @@ function toggleTheme() {
         _isTransitioning = false;
         startLevel();
       }).catch(err => {
-        console.error('[Game] Error advancing level:', err);
+       
         _isTransitioning = false;
         startLevel();
       });
@@ -246,7 +242,7 @@ function toggleTheme() {
     if (!isGameActive) return;
     _isTransitioning = true;
 
-    console.log('[Game] Timer expired — showing end modal.');
+   
 
     if (engine) engine._locked = true;
     levelManager.recordLose();
@@ -285,7 +281,7 @@ function toggleTheme() {
   // ── Restart ────────────────────────────────────────────────────────────────
 
   window.restartGame = function () {
-    console.log('[Game] Restarting — timer reset');
+   
     if (modalOverlay) modalOverlay.classList.add('hidden');
     isGameActive     = false;
     _isTransitioning = false;
@@ -311,7 +307,7 @@ function toggleTheme() {
     if (finalResetBtn) {
       finalResetBtn.addEventListener('click', () => {
         if (!isGameActive || !levelManager || _isTransitioning) return;
-        console.log('[Game] Reset — restarting current level');
+        
         _isTransitioning = false;
         levelManager.reset();
         if (engine) { engine.destroy(); engine = null; }
@@ -323,7 +319,7 @@ function toggleTheme() {
     if (finalNextBtn) {
       finalNextBtn.addEventListener('click', () => {
         if (!isGameActive || !levelManager || _isTransitioning) return;
-        console.log('[Game] Skip — new puzzle, same level');
+     
         _isTransitioning = false;
         levelManager.skip();
         if (engine) { engine.destroy(); engine = null; }
@@ -339,7 +335,7 @@ function toggleTheme() {
     if (_gameStarted) return;
     _gameStarted = true;
 
-    console.log('[Game] Initialising Motion Challenge');
+  
     isGameActive = true;
     levelManager = new LevelManager();
     _attachControls();
@@ -348,7 +344,7 @@ function toggleTheme() {
   }
 
   window.startGame = function () {
-    console.log('[Game] Start button clicked');
+   
     const overlay = document.getElementById('start-overlay');
     if (overlay) overlay.classList.add('hidden');
     initGame();

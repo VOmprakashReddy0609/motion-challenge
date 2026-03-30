@@ -56,7 +56,7 @@ class LevelManager {
     this.score += SCORE_CORRECT;
     this.levelsCompleted++;
     this.attempts++;
-    console.log(`[LevelManager] Win! Level ${this.levelNumber} done. Score: ${this.score}`);
+   
     return this.score;
   }
 
@@ -64,14 +64,14 @@ class LevelManager {
     this.score = Math.max(0, this.score + SCORE_WRONG);
     this.levelsFailed++;
     this.attempts++;
-    console.log(`[LevelManager] Loss! Level ${this.levelNumber} failed. Score: ${this.score}`);
+    
     return this.score;
   }
 
   // FIXED: Clears saved data immediately to prevent race conditions
   async advance() {
     this.levelNumber++;
-    console.log(`[LevelManager] Advancing to level ${this.levelNumber}`);
+   
     
     // CRITICAL FIX: Clear saved data immediately so reset() can't use stale data
     this._savedGrid = null;
@@ -90,11 +90,11 @@ class LevelManager {
 
   // FIXED: Validates saved data belongs to current level
   reset() {
-    console.log(`[LevelManager] Resetting level ${this.levelNumber}`);
+  
     
     // CRITICAL FIX: Check that saved data exists AND belongs to current level
     if (this._savedGrid && this._savedBlocks && this._savedLevelNum === this.levelNumber) {
-      console.log(`[LevelManager] Using saved layout for level ${this.levelNumber}`);
+     
       this.currentLevel = {
         rows:        this._savedGrid.length,
         cols:        this._savedGrid[0].length,
@@ -104,14 +104,14 @@ class LevelManager {
         levelNumber: this.levelNumber
       };
     } else {
-      console.log(`[LevelManager] No saved layout found (saved: ${this._savedLevelNum}, current: ${this.levelNumber}), generating fresh`);
+      
       this._generateCurrent();
     }
     return this.currentLevel;
   }
 
   skip() {
-    console.log(`[LevelManager] Skipping level ${this.levelNumber}`);
+   
     // Clear saved data to force fresh generation
     this.levelNumber++;
     this._savedGrid = null;
@@ -145,11 +145,11 @@ class LevelManager {
   }
 
   _generateCurrent() {
-    console.log(`[LevelManager] Generating level ${this.levelNumber}`);
+    
     const newLevel = generateLevel(this.levelNumber);
 
     if (!newLevel || !newLevel.grid || !newLevel.blocks) {
-      console.error('[LevelManager] Generation failed — using emergency level');
+    
       this.currentLevel = this._createEmergencyLevel();
     } else {
       this.currentLevel = newLevel;
@@ -163,17 +163,11 @@ class LevelManager {
       this._savedBackgroundGrid = cloneGrid(this.currentLevel.backgroundGrid);
     }
 
-    console.log(
-      `[LevelManager] Level ${this.levelNumber} ready: ` +
-      `${this.currentLevel.rows}×${this.currentLevel.cols}, ` +
-      `${this.currentLevel.blocks.length} blocks, ` +
-      `move limit: ${this.currentLevel.moveLimit}, ` +
-      `solution: ${this.currentLevel._solutionLen || '?'} moves`
-    );
+   
   }
 
   async _generateCurrentAsync() {
-    console.log(`[LevelManager] Generating level ${this.levelNumber} (async)`);
+   
     
     const newLevel = await new Promise((resolve) => {
       setTimeout(() => {
@@ -182,7 +176,7 @@ class LevelManager {
     });
 
     if (!newLevel || !newLevel.grid || !newLevel.blocks) {
-      console.error('[LevelManager] Generation failed — using emergency level');
+      
       this.currentLevel = this._createEmergencyLevel();
     } else {
       this.currentLevel = newLevel;
@@ -196,13 +190,7 @@ class LevelManager {
       this._savedBackgroundGrid = cloneGrid(this.currentLevel.backgroundGrid);
     }
 
-    console.log(
-      `[LevelManager] Level ${this.levelNumber} ready: ` +
-      `${this.currentLevel.rows}×${this.currentLevel.cols}, ` +
-      `${this.currentLevel.blocks.length} blocks, ` +
-      `move limit: ${this.currentLevel.moveLimit}, ` +
-      `solution: ${this.currentLevel._solutionLen || '?'} moves`
-    );
+   
   }
 
   // NEW: Centralized method to update saved state with level tracking

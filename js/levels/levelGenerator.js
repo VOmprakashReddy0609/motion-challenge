@@ -111,7 +111,7 @@ function generateLevel(levelNumber) {
   }
   
   level.backgroundGrid = cloneGrid(level.grid);
-  if (DEBUG) console.log(`✅ Loaded hardcoded level ${levelNumber}`);
+  
   return level;
 }
 
