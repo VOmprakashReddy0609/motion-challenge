@@ -10,7 +10,7 @@ const DEBUG = typeof window !== 'undefined' && window.DEBUG_LEVEL_GEN;
 // Main Entry Point
 // ─────────────────────────────────────────────────────────────────────────────
 function generateLevel(levelNumber) {
-  levelNumber = Math.max(1, Math.min(22, levelNumber || 1));
+  levelNumber = Math.max(1, Math.min(30, levelNumber || 1));
 
   let level;
   
@@ -81,6 +81,31 @@ function generateLevel(levelNumber) {
     case 22:
       level = _buildHardcodedLevel22();
       break;
+    case 23:
+      level = _buildHardcodedLevel23();
+      break;
+    case 24:
+      level = _buildHardcodedLevel24();
+      break;
+    case 25:
+      level = _buildHardcodedLevel25();
+      break;
+    case 26:
+      level = _buildHardcodedLevel26();
+      break;
+    case 27:
+      level = _buildHardcodedLevel27();
+      break;
+    case 28:
+      level = _buildHardcodedLevel28();
+      break;
+    case 29:
+      level = _buildHardcodedLevel29();
+      break;
+    case 30:
+      level = _buildHardcodedLevel30();
+      break;
+
     default:
       level = _buildHardcodedLevel1();
   }
@@ -107,28 +132,44 @@ if (typeof window !== 'undefined') {
   window.DIR_KEYS = DIR_KEYS;
 }
 
+
+
 function _buildHardcodedLevel1() {
-  const rows = 6, cols = 4;
+  const rows = 7, cols = 5;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
 
   const grid = [
-    [L,  E,  E,  H],  // Row 0 - Obstacle at [0,0], Hole at [0,3]
-    [E,  E,  L,  L],  // Row 1 - Obstacles at [1,2], [1,3]
-    [E,  E,  L,  L],  // Row 2 - Obstacles at [2,2], [2,3]
-    [E,  E,  E,  E],  // Row 3
-    [E,  E,  E,  E],  // Row 4
-    [L,  B,  L,  E],  // Row 5 - Obstacles at [5,0], [5,2], Ball at [5,1]
+    [L,  E,  E,  L,  E],  // Row 0 - Obstacles at [0,0], [0,3]
+    [L,  E,  E,  E,  E],  // Row 1 - Obstacle at [1,0]
+    [L,  E,  E,  E,  E],  // Row 2 - Obstacle at [2,0]
+    [L,  E,  E,  E,  E],  // Row 3 - Obstacle at [3,0]
+    [L,  E,  E,  B,  E],  // Row 4 - Obstacle at [4,0], Ball at [4,4]
+    [L,  E,  E,  E,  L],  // Row 5 - Obstacle at [5,0], Obstacle at [5,4]
+    [L,  E,  E,  H,  E],  // Row 6 - Obstacle at [6,0], Hole at [6,3]
   ];
 
   const blocks = [
-    { id: "b0", shapeKey: "1x1", anchor: [0, 1], cells: [[0, 1]], color: "purple" },
-    { id: "b1", shapeKey: "2x1", anchor: [1, 1], cells: [[1, 1], [2, 1]], color: "teal" },
-    { id: "b2", shapeKey: "1x2", anchor: [3, 1], cells: [[3, 1], [3, 2]], color: "yellow" },
-    { id: "b3", shapeKey: "1x1", anchor: [4, 1], cells: [[4, 1]], color: "green" },
+    // Colored block 1: 1x2 at [0,1], [0,2]
+    { id: "b0", shapeKey: "1x2", anchor: [0, 1], 
+      cells: [[0, 1], [0, 2]], color: "purple" },
+    
+    // Colored block 2: 3x1 at [2,2], [2,3], [2,4]
+    { id: "b1", shapeKey: "3x1", anchor: [2, 2], 
+      cells: [[2, 2], [3, 2], [4, 2]], color: "teal" },
+    
+    // Colored block 3: 2x1 at [3,3], [4,3]
+    { id: "b2", shapeKey: "2x1", anchor: [3, 3], 
+      cells: [[3, 3], [4, 3]], color: "yellow" },
+    
+    // Colored block 4: 1x3 at [5,1], [5,2], [5,3]
+    { id: "b3", shapeKey: "1x3", anchor: [5, 1], 
+      cells: [[5, 1], [5, 2], [5, 3]], color: "green" },
   ];
 
-  return _finalizeHardcoded(grid, rows, cols, blocks, 5, 1, 0, 3, 1, 15);
+  return _finalizeHardcoded(grid, rows, cols, blocks, 4, 4, 6, 3, 23, 16);
 }
+
+
 
 function _buildHardcodedLevel2() {
   const rows = 6, cols = 4;
@@ -250,11 +291,168 @@ function _buildHardcodedLevel6() {
   return _finalizeHardcoded(grid, rows, cols, blocks, 1, 0, 2, 5, 6, 10);
 }
 
+function _buildHardcodedLevel7() {
+  const rows = 5, cols = 3;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
+
+  const grid = [
+    [E,  H,  E],  // Row 0 - Hole at [0,1]
+    [E,  E,  E],  // Row 1
+    [E,  E,  E],  // Row 2
+    [E,  E,  E],  // Row 3
+    [B,  E,  E],  // Row 4 - Ball at [4,0]
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "1x2", anchor: [1, 0], 
+      cells: [[1, 0], [1, 1]], color: "purple" },
+    { id: "b1", shapeKey: "2x1", anchor: [2, 0], 
+      cells: [[2, 0], [3, 0]], color: "teal" },
+    { id: "b2", shapeKey: "1x1", anchor: [1, 2], 
+      cells: [[1, 2]], color: "yellow" },
+    { id: "b3", shapeKey: "1x1", anchor: [4, 1], 
+      cells: [[4, 1]], color: "green" },
+    { id: "b4", shapeKey: "1x1", anchor: [4, 2], 
+      cells: [[4, 2]], color: "blue" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 4, 0, 0, 1, 1, 10);
+}
+
+function _buildHardcodedLevel8() {
+  const rows = 7, cols = 5;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
+
+  const grid = [
+    [H,  E,  E,  E,  E],  // Row 0 - Hole at [0,0]
+    [E,  E,  E,  E,  E],  // Row 1
+    [E,  E,  E,  E,  E],  // Row 2
+    [E,  E,  E,  E,  E],  // Row 3
+    [E,  E,  E,  E,  E],  // Row 4
+    [E,  E,  E,  E,  E],  // Row 5
+    [B,  E,  E,  E,  E],  // Row 6 - Ball at [6,0]
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "1x4", anchor: [1, 0], 
+      cells: [[1, 0], [1, 1], [1, 2], [1, 3]], color: "purple" },
+    { id: "b1", shapeKey: "2x2", anchor: [2, 0], 
+      cells: [[2, 0], [2, 1], [3, 0], [3, 1]], color: "teal" },
+    { id: "b2", shapeKey: "1x2", anchor: [2, 2], 
+      cells: [[2, 2], [2, 3]], color: "yellow" },
+    { id: "b3", shapeKey: "4x1", anchor: [3, 2], 
+      cells: [[3, 2], [4, 2], [5, 2], [6, 2]], color: "green" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 6, 0, 0, 0, 2, 12);
+}
+
+function _buildHardcodedLevel9() {
+  const rows = 5, cols = 3;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
+
+  const grid = [
+    [B,  E,  E],  // Row 0 - Ball at [0,0]
+    [E,  E,  E],  // Row 1
+    [E,  E,  E],  // Row 2
+    [E,  E,  H],  // Row 3 - Hole at [3,2]
+    [E,  E,  E],  // Row 4
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "1x1", anchor: [1, 0], 
+      cells: [[1, 0]], color: "purple" },
+    { id: "b1", shapeKey: "2x1", anchor: [0, 1], 
+      cells: [[0, 1], [1, 1]], color: "teal" },
+    { id: "b2", shapeKey: "1x3", anchor: [2, 0], 
+      cells: [[2, 0], [2, 1], [2, 2]], color: "yellow" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 0, 0, 3, 2, 3, 10);
+}
+
+function _buildHardcodedLevel10() {
+  const rows = 6, cols = 4;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
+
+  const grid = [
+    [H,  E,  E,  E],  // Row 0 - Hole at [0,0]
+    [L,  L,  E,  E],  // Row 1 - Obstacles at [1,0], [1,1]
+    [E,  E,  E,  E],  // Row 2
+    [E,  E,  L,  L],  // Row 3 - Obstacles at [3,2], [3,3]
+    [E,  E,  E,  E],  // Row 4
+    [L,  L,  E,  B],  // Row 5 - Obstacles at [5,0], [5,1], Ball at [5,3]
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "2x1", anchor: [0, 2], 
+      cells: [[0, 2], [1, 2]], color: "purple" },
+    { id: "b1", shapeKey: "2x1", anchor: [2, 1], 
+      cells: [[2, 1], [3, 1]], color: "teal" },
+    { id: "b2", shapeKey: "1x1", anchor: [4, 2], 
+      cells: [[4, 2]], color: "yellow" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 5, 3, 0, 0, 4, 19);
+}
+
+function _buildHardcodedLevel11() {
+  const rows = 5, cols = 3;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
+
+  const grid = [
+    [B,  E,  E],  // Row 0 - Ball at [0,0]
+    [E,  E,  E],  // Row 1
+    [E,  E,  E],  // Row 2
+    [E,  E,  E],  // Row 3
+    [E,  H,  E],  // Row 4 - Hole at [4,1]
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "1x2", anchor: [0, 1], 
+      cells: [[0, 1], [0, 2]], color: "purple" },
+    { id: "b1", shapeKey: "2x1", anchor: [1, 0], 
+      cells: [[1, 0], [2, 0]], color: "teal" },
+    { id: "b2", shapeKey: "2x1", anchor: [3, 0], 
+      cells: [[3, 0], [3, 1]], color: "yellow" },
+    { id: "b3", shapeKey: "1x1", anchor: [3, 2], 
+      cells: [[3, 2]], color: "green" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 0, 0, 4, 1, 5, 10);
+}
+
+function _buildHardcodedLevel12() {
+  const rows = 6, cols = 4;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
+
+  const grid = [
+    [H,  E,  E,  L],  // Row 0 - Hole at [0,0], Obstacle at [0,3]
+    [E,  E,  L,  E],  // Row 1 - Obstacle at [1,2]
+    [E,  E,  E,  E],  // Row 2
+    [E,  E,  E,  E],  // Row 3
+    [L,  L,  E,  L],  // Row 4 - Obstacles at [4,0], [4,1], [4,3]
+    [E,  E,  B,  E],  // Row 5 - Ball at [5,2]
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "1x2", anchor: [0, 1], 
+      cells: [[0, 1], [0, 2]], color: "purple" },
+    { id: "b1", shapeKey: "1x2", anchor: [2, 1], 
+      cells: [[2, 1], [2, 2]], color: "teal" },
+    { id: "b2", shapeKey: "3x1", anchor: [1, 3], 
+      cells: [[1, 3], [2, 3], [3, 3]], color: "yellow" },
+    { id: "b3", shapeKey: "1x1", anchor: [3, 2], 
+      cells: [[3, 2]], color: "green" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 5, 2, 0, 0, 6, 14);
+}
 // ─────────────────────────────────────────────────────────────────────────────
 // LEVEL 1 — 6×5
 // Ball: [5,0]  Hole: [0,4]
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel7() {
+function _buildHardcodedLevel13() {
   const rows = 6, cols = 5;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
 
@@ -287,7 +485,7 @@ function _buildHardcodedLevel7() {
 // LEVEL 2 — 6×5
 // Ball: [2,0]  Hole: [2,4]
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel8() {
+function _buildHardcodedLevel14() {
   const rows = 6, cols = 5;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
 
@@ -318,7 +516,7 @@ function _buildHardcodedLevel8() {
 // LEVEL 3 — 6×5
 // Ball: [5,0]  Hole: [5,4]
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel9() {
+function _buildHardcodedLevel15() {
   const rows = 6, cols = 5;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
 
@@ -348,7 +546,7 @@ function _buildHardcodedLevel9() {
 }
 
 
-function _buildHardcodedLevel10() {
+function _buildHardcodedLevel16() {
   const rows = 5, cols = 3;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
  
@@ -381,7 +579,7 @@ function _buildHardcodedLevel10() {
 // Ball: [4,3]  Hole: [0,1]
 
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel11() {
+function _buildHardcodedLevel17() {
   const rows = 6, cols = 4;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
  
@@ -425,7 +623,7 @@ function _buildHardcodedLevel11() {
 // LEVEL 6 — 7×5 (Original level 9 from your spec)
 // Ball: [6,0]  Hole: [0,2]
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel12() {
+function _buildHardcodedLevel18() {
   const rows = 7, cols = 5;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
 
@@ -463,7 +661,7 @@ function _buildHardcodedLevel12() {
 // LEVEL 7 — 6×4 (Original level 10 from your spec)
 // Ball: [5,0]  Hole: [0,3]
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel13() {
+function _buildHardcodedLevel19() {
   const rows = 6, cols = 4;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
 
@@ -494,7 +692,7 @@ function _buildHardcodedLevel13() {
 // LEVEL 8 — 4×4 (Original level 11 from your spec)
 // Ball: [0,0]  Hole: [3,3]
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel14() {
+function _buildHardcodedLevel20() {
   const rows = 4, cols = 4;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
 
@@ -523,7 +721,7 @@ function _buildHardcodedLevel14() {
 // LEVEL 9 — 4×4 (Original level 12 from your spec)
 // Ball: [2,0]  Hole: [0,3]
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel15() {
+function _buildHardcodedLevel21() {
   const rows = 4, cols = 4;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
 
@@ -552,7 +750,7 @@ function _buildHardcodedLevel15() {
 // LEVEL 10 — 6×6 (Original level 13 from your spec)
 // Ball: [0,0]  Hole: [5,5]
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel16() {
+function _buildHardcodedLevel22() {
   const rows = 6, cols = 6;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
 
@@ -587,7 +785,7 @@ function _buildHardcodedLevel16() {
 // LEVEL 11 — 6×6 (Original level 14 from your spec)
 // Ball: [2,4]  Hole: [5,5]
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel17() {
+function _buildHardcodedLevel23() {
   const rows = 6, cols = 6;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
 
@@ -630,7 +828,7 @@ function _buildHardcodedLevel17() {
 // LEVEL 12 — 6×6 (Original level 15 from your spec)
 // Ball: [5,0]  Hole: [0,0]
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel18() {
+function _buildHardcodedLevel24() {
   const rows = 6, cols = 6;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
 
@@ -665,7 +863,7 @@ function _buildHardcodedLevel18() {
 // LEVEL 13 — New level (custom design)
 // Ball: [0,0]  Hole: [5,5]
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel19() {
+function _buildHardcodedLevel25() {
   const rows = 6, cols = 6;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
 
@@ -697,7 +895,7 @@ function _buildHardcodedLevel19() {
 // LEVEL 14 — 6×6
 // Ball: [5,0]  Hole: [0,5]
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel20() {
+function _buildHardcodedLevel26() {
   const rows = 6, cols = 6;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
 
@@ -743,7 +941,7 @@ function _buildHardcodedLevel20() {
 // LEVEL 15 — 6×6
 // Ball: [5,0]  Hole: [0,5]
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel21() {
+function _buildHardcodedLevel27() {
   const rows = 6, cols = 6;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
 
@@ -797,7 +995,7 @@ function _buildHardcodedLevel21() {
 // LEVEL 16 — 6×6
 // Ball: [0,0]  Hole: [5,5]
 // ─────────────────────────────────────────────────────────────────────────────
-function _buildHardcodedLevel22() {
+function _buildHardcodedLevel28() {
   const rows = 6, cols = 6;
   const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE;
 
@@ -850,6 +1048,71 @@ function _buildHardcodedLevel22() {
 
   return _finalizeHardcoded(grid, rows, cols, blocks, 0, 0, 5, 5, 17, 42);
 }
+
+function _buildHardcodedLevel29() {
+  const rows = 8, cols = 5;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
+
+  const grid = [
+    [L,  E,  E,  L,  E],  // Row 0 - Obstacles at [0,0], [0,3]
+    [L,  E,  E,  E,  E],  // Row 1 - Obstacle at [1,0]
+    [L,  E,  E,  E,  E],  // Row 2 - Obstacle at [2,0]
+    [L,  E,  E,  E,  E],  // Row 3 - Obstacle at [3,0]
+    [L,  E,  E,  B,  E],  // Row 4 - Obstacle at [4,0], Ball at [4,4]
+    [L,  E,  E,  E,  L],  // Row 5 - Obstacle at [5,0], Obstacle at [5,4]
+    [E,  E,  E,  E,  L],  // Row 6 - Obstacle at [6,0], Hole at [6,3]
+    [L,  E,  E,  H,  E],  // Row 7 - Obstacle at [7,0]
+  ];
+
+  const blocks = [
+    // Colored block 1: 1x2 at [0,1], [0,2]
+    { id: "b0", shapeKey: "1x2", anchor: [0, 1], 
+      cells: [[0, 1], [0, 2]], color: "purple" },
+    
+    // Colored block 2: 3x1 at [2,2], [3,2], [4,2]
+    { id: "b1", shapeKey: "3x1", anchor: [2, 2], 
+      cells: [[2, 2], [3, 2], [4, 2]], color: "teal" },
+    
+    // Colored block 3: 2x1 at [3,3], [4,3]
+    { id: "b2", shapeKey: "2x1", anchor: [3, 3], 
+      cells: [[3, 3], [4, 3]], color: "yellow" },
+    
+    // Colored block 4: 1x3 at [5,1], [5,2], [5,3]
+    { id: "b3", shapeKey: "1x3", anchor: [5, 1], 
+      cells: [[5, 1], [5, 2], [5, 3]], color: "green" },
+    
+    // New colored block 5: 1x3 at [7,1], [7,2], [7,3]
+    { id: "b4", shapeKey: "1x3", anchor: [7, 1], 
+      cells: [[6, 1], [6, 2], [6, 3]], color: "blue" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 4, 4, 7, 3, 1, 20);
+}
+
+function _buildHardcodedLevel30() {
+  const rows = 6, cols = 4;
+  const E = CELL_EMPTY, B = CELL_BALL, H = CELL_HOLE, L = CELL_LOCK;
+
+  const grid = [
+    [L,  E,  E,  H],  // Row 0 - Obstacle at [0,0], Hole at [0,3]
+    [E,  E,  L,  L],  // Row 1 - Obstacles at [1,2], [1,3]
+    [E,  E,  L,  L],  // Row 2 - Obstacles at [2,2], [2,3]
+    [E,  E,  E,  E],  // Row 3
+    [E,  E,  E,  E],  // Row 4
+    [L,  B,  L,  E],  // Row 5 - Obstacles at [5,0], [5,2], Ball at [5,1]
+  ];
+
+  const blocks = [
+    { id: "b0", shapeKey: "1x1", anchor: [0, 1], cells: [[0, 1]], color: "purple" },
+    { id: "b1", shapeKey: "2x1", anchor: [1, 1], cells: [[1, 1], [2, 1]], color: "teal" },
+    { id: "b2", shapeKey: "1x2", anchor: [3, 1], cells: [[3, 1], [3, 2]], color: "yellow" },
+    { id: "b3", shapeKey: "1x1", anchor: [4, 1], cells: [[4, 1]], color: "green" },
+  ];
+
+  return _finalizeHardcoded(grid, rows, cols, blocks, 5, 1, 0, 3, 1, 15);
+}
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared finalizer for hardcoded levels
 // ─────────────────────────────────────────────────────────────────────────────
