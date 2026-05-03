@@ -1,5 +1,6 @@
 // js/levels/levelManager.js
 // FIXED VERSION — March 2026
+// UPDATED: Added fromSavedState() static factory for reload persistence
 //
 // Fixes:
 // 1. advance() now clears _savedGrid immediately to prevent reset() from using stale data during generation
@@ -22,6 +23,59 @@ class LevelManager {
     this._pendingLevel   = null;
     this._onLevelReady   = null;
     this._generateCurrent();
+  }
+
+  // ── Static factory: reconstruct from a persisted snapshot ─────────────────
+  //
+  // Called by main.js during the reload-restore path (Scenario 1) and the
+  // navigation-away path (Scenario 2).  We skip _generateCurrent() entirely
+  // because we already have the level's pristine grid/blocks from the save.
+
+  static fromSavedState(saved) {
+    const mgr = Object.create(LevelManager.prototype);
+
+    // Restore scalar stats
+    mgr.levelNumber     = saved.levelNumber     || 1;
+    mgr.score           = saved.score           || 0;
+    mgr.attempts        = saved.attempts        || 0;
+    mgr.levelsCompleted = saved.levelsCompleted || 0;
+    mgr.levelsFailed    = saved.levelsFailed    || 0;
+
+    // Restore internal saved-state fields (pristine level start, used by reset())
+    mgr._savedGrid      = saved.savedGrid     || null;
+    mgr._savedBlocks    = saved.savedBlocks   || null;
+    mgr._savedLevelNum  = saved.savedLevelNum || null;
+    mgr._savedMoveLimit = saved.savedMoveLimit || 12;
+
+    // Expose live mid-game state so main.js can pass it to GameEngine on restore
+    mgr._liveGrid   = saved.liveGrid   || null;
+    mgr._liveBlocks = saved.liveBlocks || null;
+    mgr._liveBall   = saved.liveBall   || null;
+    mgr._liveMoves  = saved.liveMoves  || 0;
+
+    mgr._isGenerating   = false;
+    mgr._pendingLevel   = null;
+    mgr._onLevelReady   = null;
+
+    // Reconstruct currentLevel from the PRISTINE saved grid/blocks so reset()
+    // works correctly, and so the engine gets the right dimensions/moveLimit.
+    // The live mid-game positions are applied separately by main.js after engine init.
+    if (mgr._savedGrid && mgr._savedBlocks) {
+      mgr.currentLevel = {
+        rows:        mgr._savedGrid.length,
+        cols:        mgr._savedGrid[0].length,
+        grid:        cloneGrid(mgr._savedGrid),
+        blocks:      cloneBlocks(mgr._savedBlocks),
+        moveLimit:   mgr._savedMoveLimit,
+        levelNumber: mgr.levelNumber
+      };
+    } else {
+      // Fallback: generate a fresh level at the saved level number
+      mgr.currentLevel = null;
+      mgr._generateCurrent();
+    }
+
+    return mgr;
   }
 
   // ── Public API ────────────────────────────────────────────────────────────
@@ -56,7 +110,6 @@ class LevelManager {
     this.score += SCORE_CORRECT;
     this.levelsCompleted++;
     this.attempts++;
-   
     return this.score;
   }
 
@@ -64,14 +117,12 @@ class LevelManager {
     this.score = Math.max(0, this.score + SCORE_WRONG);
     this.levelsFailed++;
     this.attempts++;
-    
     return this.score;
   }
 
   // FIXED: Clears saved data immediately to prevent race conditions
   async advance() {
     this.levelNumber++;
-   
     
     // CRITICAL FIX: Clear saved data immediately so reset() can't use stale data
     this._savedGrid = null;
@@ -90,11 +141,8 @@ class LevelManager {
 
   // FIXED: Validates saved data belongs to current level
   reset() {
-  
-    
     // CRITICAL FIX: Check that saved data exists AND belongs to current level
     if (this._savedGrid && this._savedBlocks && this._savedLevelNum === this.levelNumber) {
-     
       this.currentLevel = {
         rows:        this._savedGrid.length,
         cols:        this._savedGrid[0].length,
@@ -104,14 +152,12 @@ class LevelManager {
         levelNumber: this.levelNumber
       };
     } else {
-      
       this._generateCurrent();
     }
     return this.currentLevel;
   }
 
   skip() {
-   
     // Clear saved data to force fresh generation
     this.levelNumber++;
     this._savedGrid = null;
@@ -145,11 +191,9 @@ class LevelManager {
   }
 
   _generateCurrent() {
-    
     const newLevel = generateLevel(this.levelNumber);
 
     if (!newLevel || !newLevel.grid || !newLevel.blocks) {
-    
       this.currentLevel = this._createEmergencyLevel();
     } else {
       this.currentLevel = newLevel;
@@ -162,13 +206,9 @@ class LevelManager {
     if (this.currentLevel.backgroundGrid) {
       this._savedBackgroundGrid = cloneGrid(this.currentLevel.backgroundGrid);
     }
-
-   
   }
 
   async _generateCurrentAsync() {
-   
-    
     const newLevel = await new Promise((resolve) => {
       setTimeout(() => {
         resolve(generateLevel(this.levelNumber));
@@ -176,7 +216,6 @@ class LevelManager {
     });
 
     if (!newLevel || !newLevel.grid || !newLevel.blocks) {
-      
       this.currentLevel = this._createEmergencyLevel();
     } else {
       this.currentLevel = newLevel;
@@ -189,8 +228,6 @@ class LevelManager {
     if (this.currentLevel.backgroundGrid) {
       this._savedBackgroundGrid = cloneGrid(this.currentLevel.backgroundGrid);
     }
-
-   
   }
 
   // NEW: Centralized method to update saved state with level tracking
