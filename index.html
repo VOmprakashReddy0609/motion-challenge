@@ -11,6 +11,89 @@
   <link rel="stylesheet" href="css/board.css">
   <link rel="stylesheet" href="css/animations.css">
   <link rel="stylesheet" href="css/darkMode.css">
+  <style>
+    /* ── "Created by" strip inside the start card ── */
+    #start-creator {
+      background: #f4f7fd;
+      border-bottom: 1px solid #dde6f5;
+      padding: 8px 24px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+      color: #4a5c7a;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    #start-creator .creator-name {
+      font-weight: 700;
+      color: #1a56a0;
+      letter-spacing: 0.2px;
+    }
+
+    /* ── Page Footer ── */
+    #page-footer {
+      width: 100%;
+      background: #0d2a52;
+      color: #a0b8d8;
+      text-align: center;
+      padding: 18px 24px;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12.5px;
+      line-height: 1.8;
+      letter-spacing: 0.2px;
+      border-top: 3px solid #1a56a0;
+      box-sizing: border-box;
+    }
+    #page-footer .footer-dev-label {
+      font-size: 10px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: #5a85b8;
+      margin-bottom: 4px;
+    }
+    #page-footer .footer-dev-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #e0ecff;
+      letter-spacing: 0.4px;
+    }
+    #page-footer .footer-dev-email a {
+      color: #5fa8e8;
+      text-decoration: none;
+      font-size: 12.5px;
+      transition: color 0.15s;
+    }
+    #page-footer .footer-dev-email a:hover {
+      color: #90c8ff;
+      text-decoration: underline;
+    }
+    #page-footer .footer-divider {
+      display: inline-block;
+      width: 40px;
+      height: 1px;
+      background: #2a4a78;
+      margin: 8px auto;
+      vertical-align: middle;
+    }
+    #page-footer .footer-product {
+      font-size: 11.5px;
+      color: #6080a8;
+    }
+
+    /* ── Dark-mode overrides ── */
+    [data-theme="dark"] #start-creator {
+      background: #182535;
+      border-color: #253a56;
+      color: #7a9ac0;
+    }
+    [data-theme="dark"] #start-creator .creator-name {
+      color: #5fa0e8;
+    }
+    [data-theme="dark"] #page-footer {
+      background: #0a1a30;
+      border-color: #1a3a6a;
+    }
+  </style>
 </head>
 
 <body>
@@ -38,9 +121,15 @@
     </div>
 
     <div id="start-divider"></div>
-    <div><h3>Created by Om Prakash Reddy Vanampally</h3></div>
+
     <div id="start-subtitle">
       Spatial Reasoning Assessment &mdash; Read the rules carefully before you begin.
+    </div>
+
+    <!-- ── Developer credit inside the start card ── -->
+    <div id="start-creator">
+      <span>👨‍💻</span>
+      <span>Created by <span class="creator-name">Vanampally Om Prakash Reddy</span></span>
     </div>
 
     <div id="start-rules">
@@ -154,7 +243,7 @@
       <div id="progress-bar-bg">
         <div id="progress-bar-fill"></div>
       </div>
-      <div id="progress-label">Level <span id="level-progress">1</div>
+      <div id="progress-label">Level <span id="level-progress">1</span></div>
     </div>
 
     <div id="level-card">
@@ -238,12 +327,6 @@
 
 <script src="js/main.js" defer></script>
 
-<!--
-  SINGLE inline script block.
-  Runs immediately (no defer) so theme is applied before first paint.
-  startGame() is safe to call at any time — if defer scripts haven't
-  finished yet the call is queued until window 'load' fires.
--->
 <script>
   // ── Theme ────────────────────────────────────────────────────────────────
   function applyTheme(theme) {
@@ -266,15 +349,8 @@
   applyTheme(localStorage.getItem('theme') || 'light');
 
   // ── Start-game race-condition fix ────────────────────────────────────────
-  // All game scripts use `defer`, which means they execute AFTER
-  // DOMContentLoaded but BEFORE window 'load'.  If the player clicks
-  // "Start" before all deferred scripts have run, initGame() won't exist yet.
-  //
-  // Solution: track whether all scripts are ready.  If Start is clicked early,
-  // queue it and fire as soon as window 'load' confirms everything is loaded.
-
-  var _scriptsReady  = false;
-  var _startPending  = false;
+  var _scriptsReady = false;
+  var _startPending = false;
 
   window.addEventListener('load', function () {
     _scriptsReady = true;
@@ -289,7 +365,7 @@
     if (_scriptsReady) {
       _doStartGame();
     } else {
-      _startPending = true;   // fire once scripts are ready
+      _startPending = true;
     }
   }
 
@@ -297,19 +373,19 @@
     window._gameStarted = true;
     if (typeof initGame === 'function') {
       initGame();
-    } 
+    }
   }
 </script>
-<footer id="site-footer">
-  <div class="footer-wrap">
-    <span class="footer-name">Om Prakash Reddy Vanampally</span>
-    <div class="footer-right">
-      <span class="footer-label">Contact</span>
-      <a class="footer-email" href="mailto:vanampallyomprakashreddy@gmail.com">
-        vanampallyomprakashreddy@gmail.com
-      </a>
-    </div>
+
+<!-- ── Page Footer ── -->
+<footer id="page-footer">
+  <div class="footer-dev-label">Developed by</div>
+  <div class="footer-dev-name">Vanampally Om Prakash Reddy</div>
+  <div class="footer-dev-email">
+    <a href="mailto:vanampallyomprakashreddy@gmail.com">vanampallyomprakashreddy@gmail.com</a>
   </div>
+  <div><span class="footer-divider"></span></div>
+  <div class="footer-product">Motion Challenge &mdash; Spatial Reasoning Assessment</div>
 </footer>
 
 </body>
